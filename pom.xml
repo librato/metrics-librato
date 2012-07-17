@@ -25,7 +25,8 @@
     </licenses>
     <scm>
         <url>https://github.com/librato/metrics-librato</url>
-        <connection>git@github.com:librato/metrics-librato.git</connection>
+        <connection>scm:git:git@github.com:librato/metrics-librato.git</connection>
+        <developerConnection>scm:git:git@github.com:librato/metrics-librato.git</developerConnection>
     </scm>
 
     <developers>
