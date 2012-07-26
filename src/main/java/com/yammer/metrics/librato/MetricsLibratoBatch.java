@@ -1,5 +1,8 @@
 package com.yammer.metrics.librato;
 
+import com.librato.metrics.LibratoBatch;
+import com.librato.metrics.MultiSampleGaugeMeasurement;
+import com.librato.metrics.SingleValueGaugeMeasurement;
 import com.yammer.metrics.core.*;
 import com.yammer.metrics.stats.Snapshot;
 
