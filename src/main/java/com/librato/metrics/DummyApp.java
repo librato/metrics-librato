@@ -1,4 +1,4 @@
-package com.yammer.metrics.librato;
+package com.librato.metrics;
 
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;

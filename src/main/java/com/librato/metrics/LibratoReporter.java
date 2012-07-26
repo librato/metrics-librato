@@ -1,6 +1,5 @@
-package com.yammer.metrics.librato;
+package com.librato.metrics;
 
-import com.librato.metrics.LibratoBatch;
 import com.ning.http.client.*;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;

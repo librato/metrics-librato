@@ -1,4 +1,4 @@
-package com.yammer.metrics.librato;
+package com.librato.metrics;
 
 import org.junit.Test;
 
