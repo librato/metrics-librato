@@ -2,6 +2,12 @@
 
 The `LibratoReporter` class runs in the background, publishing metrics to the <a href="http://metrics.librato.com">Librato Metrics API</a> at the specified interval.
 
+    <dependency>
+        <groupId>com.librato.metrics</groupId>
+        <artifactId>metrics-librato</artifactId>
+        <version>2.1.2.1</version>
+    </dependency>
+
 ## Usage
 
 During the initialization of your program, simply use the `.enable` method with the appropriately configured `LibratoReporter.Builder` class. See the setters on that method for all the available customizations (there are quite a few). The constructor for the `Builder` requres only the things that are necessary; sane defaults are provided for the rest of the options.
