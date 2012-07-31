@@ -5,7 +5,13 @@ import com.librato.metrics.MultiSampleGaugeMeasurement;
 import com.librato.metrics.SingleValueGaugeMeasurement;
 import com.yammer.metrics.core.*;
 import com.yammer.metrics.stats.Snapshot;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -15,8 +21,53 @@ import java.util.concurrent.TimeUnit;
  * a LibratoBatch that understand Metrics-specific types
  */
 public class MetricsLibratoBatch extends LibratoBatch {
+    private static final Logger LOG = LoggerFactory.getLogger(MetricsLibratoBatch.class);
+
+    /**
+     * a string used to identify the library
+     */
+    private static final String agentIdentifier;
+
+    static {
+        InputStream pomIs = LibratoReporter.class.getClassLoader().getResourceAsStream("META-INF/maven/com.librato.metrics/metrics-librato/pom.properties");
+        BufferedReader b = new BufferedReader(new InputStreamReader(pomIs));
+        String version = "unknown";
+        try {
+            String line = b.readLine();
+            while (line != null)  {
+                if (line.startsWith("version")) {
+                    version = line.split("=")[1];
+                    break;
+                }
+                line = b.readLine();
+            }
+        } catch (IOException e) {
+            LOG.error("Failure reading package version for librato-java", e);
+        }
+
+        // now coda!
+
+        pomIs = MetricsRegistry.class.getClassLoader().getResourceAsStream("META-INF/maven/com.yammer.metrics/metrics-core/pom.properties");
+        b = new BufferedReader(new InputStreamReader(pomIs));
+        String codaVersion = "unknown";
+        try {
+            String line = b.readLine();
+            while (line != null)  {
+                if (line.startsWith("version")) {
+                    codaVersion = line.split("=")[1];
+                    break;
+                }
+                line = b.readLine();
+            }
+        } catch (IOException e) {
+            LOG.error("Failure reading package version for librato-java", e);
+        }
+
+        agentIdentifier = String.format("metrics-librato/%s metrics/%s", version, codaVersion);
+    }
+
     public MetricsLibratoBatch(int postBatchSize, long timeout, TimeUnit timeoutUnit) {
-        super(postBatchSize, timeout, timeoutUnit);
+        super(postBatchSize, timeout, timeoutUnit, agentIdentifier);
     }
 
     public void addGauge(String name, Gauge gauge) {
