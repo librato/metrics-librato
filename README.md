@@ -1,6 +1,6 @@
 ## Librato Metrics Plugin for the Metrics Library
 
-The `LibratoReporter` class runs in the background, publishing metrics to the <a href="http://metrics.librato.com">Librato Metrics API</a> at the specified interval.
+The `LibratoReporter` class runs in the background, publishing metrics from <a href="https://github.com/codahale/metrics">codahale/metrics</a> to the <a href="http://metrics.librato.com">Librato Metrics API</a> at the specified interval.
 
     <dependency>
         <groupId>com.librato.metrics</groupId>
