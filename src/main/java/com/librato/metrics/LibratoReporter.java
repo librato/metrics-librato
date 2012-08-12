@@ -25,7 +25,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     private final long timeout;
     private final TimeUnit timeoutUnit;
 
-    private final LibratoUtil.Sanitizer sanitizer;
+    private final APIUtil.Sanitizer sanitizer;
 
     protected final MetricsRegistry registry;
     protected final MetricPredicate predicate;
@@ -42,17 +42,12 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     /**
      * private to prevent someone from accidentally actually using this constructor. see .builder()
      */
-    private LibratoReporter(Realm authRealm, String apiUrl, String name, final LibratoUtil.Sanitizer customSanitizer,
+    private LibratoReporter(Realm authRealm, String apiUrl, String name, final APIUtil.Sanitizer customSanitizer,
                             String source, long timeout, TimeUnit timeoutUnit, MetricsRegistry registry,
                             MetricPredicate predicate, Clock clock, VirtualMachineMetrics vm, boolean reportVmMetrics) {
         super(registry, name);
         this.authRealm = authRealm;
-        this.sanitizer = new LibratoUtil.Sanitizer() {
-            @Override
-            public String apply(String name) {
-                return LibratoUtil.lastPassSanitizer.apply(customSanitizer.apply(name));
-            }
-        };
+        this.sanitizer = customSanitizer;
         this.apiUrl = apiUrl;
         this.source = source;
         this.timeout = timeout;
@@ -67,7 +62,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     @Override
     public void run() {
         // accumulate all the metrics in the batch, then post it allowing the LibratoBatch class to break up the work
-        MetricsLibratoBatch batch = new MetricsLibratoBatch(LibratoBatch.DEFAULT_BATCH_SIZE, timeout, timeoutUnit);
+        MetricsLibratoBatch batch = new MetricsLibratoBatch(LibratoBatch.DEFAULT_BATCH_SIZE, sanitizer, timeout, timeoutUnit);
         if (reportVmMetrics) {
             reportVmMetrics(batch);
         }
@@ -151,7 +146,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
 
         private String apiUrl = "https://metrics-api.librato.com/v1/metrics";
 
-        private LibratoUtil.Sanitizer sanitizer = LibratoUtil.noopSanitizer;
+        private APIUtil.Sanitizer sanitizer = APIUtil.noopSanitizer;
 
         private long timeout = 5;
         private TimeUnit timeoutUnit = TimeUnit.SECONDS;
@@ -204,12 +199,12 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         /**
          * Use a custom sanitizer. All metric names are run through a sanitizer to ensure validity before being sent
          * along. Librato places some restrictions on the characters allowed in keys, so all keys are ultimately run
-         * through LibratoUtil.lastPassSanitizer. Specifying an additional sanitizer (that runs before lastPassSanitizer)
+         * through APIUtil.lastPassSanitizer. Specifying an additional sanitizer (that runs before lastPassSanitizer)
          * allows the user to customize what they want done about invalid characters and excessively long metric names.
          * @param sanitizer the custom sanitizer to use  (defaults to a noop sanitizer).
          * @return itself
          */
-        public Builder setSanitizer(LibratoUtil.Sanitizer sanitizer) {
+        public Builder setSanitizer(APIUtil.Sanitizer sanitizer) {
             this.sanitizer = sanitizer;
             return this;
         }

@@ -63,8 +63,8 @@ public class MetricsLibratoBatch extends LibratoBatch {
         agentIdentifier = String.format("metrics-librato/%s metrics/%s", version, codaVersion);
     }
 
-    public MetricsLibratoBatch(int postBatchSize, long timeout, TimeUnit timeoutUnit) {
-        super(postBatchSize, timeout, timeoutUnit, agentIdentifier);
+    public MetricsLibratoBatch(int postBatchSize, APIUtil.Sanitizer sanitizer, long timeout, TimeUnit timeoutUnit) {
+        super(postBatchSize, sanitizer, timeout, timeoutUnit, agentIdentifier);
     }
 
     public void addGauge(String name, Gauge gauge) {
