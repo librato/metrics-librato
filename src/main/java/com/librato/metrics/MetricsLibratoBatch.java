@@ -1,8 +1,5 @@
 package com.librato.metrics;
 
-import com.librato.metrics.LibratoBatch;
-import com.librato.metrics.MultiSampleGaugeMeasurement;
-import com.librato.metrics.SingleValueGaugeMeasurement;
 import com.yammer.metrics.core.*;
 import com.yammer.metrics.stats.Snapshot;
 import org.slf4j.Logger;
@@ -76,7 +73,8 @@ public class MetricsLibratoBatch extends LibratoBatch {
 
     public void addSummarizable(String name, Summarizable summarizable) {
         // TODO: add sum_squares if/when Summarizble exposes it
-        addMeasurement(new MultiSampleGaugeMeasurement(name, summarizable.max(), summarizable.min(), summarizable.sum() / summarizable.mean(), summarizable.sum(), null));
+        addMeasurement(new MultiSampleGaugeMeasurement(name, (long) summarizable.max(), summarizable.min(),
+                nullIfNotNumeric(summarizable.sum() / summarizable.mean()), summarizable.sum(), null));
     }
 
     public void addSampling(String name, Sampling sampling) {
@@ -95,5 +93,12 @@ public class MetricsLibratoBatch extends LibratoBatch {
         addMeasurement(new SingleValueGaugeMeasurement(name+".1MinuteRate", meter.oneMinuteRate()));
         addMeasurement(new SingleValueGaugeMeasurement(name+".5MinuteRate", meter.fiveMinuteRate()));
         addMeasurement(new SingleValueGaugeMeasurement(name+".15MinuteRate", meter.fifteenMinuteRate()));
+    }
+
+    private Number nullIfNotNumeric(double v) {
+        if (Double.isNaN(v) || Double.isInfinite(v)) {
+            return null;
+        }
+        return v;
     }
 }
