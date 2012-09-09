@@ -1,6 +1,7 @@
 package com.librato.metrics;
 
 import com.ning.http.client.*;
+import com.ning.http.util.Base64;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;
 import com.yammer.metrics.reporting.AbstractPollingReporter;
@@ -20,7 +21,7 @@ import java.util.concurrent.TimeUnit;
 public class LibratoReporter extends AbstractPollingReporter implements MetricProcessor<MetricsLibratoBatch> {
     private final String source;
 
-    private final Realm authRealm;
+    private final String authHeader;
     private final String apiUrl;
     private final long timeout;
     private final TimeUnit timeoutUnit;
@@ -42,11 +43,11 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     /**
      * private to prevent someone from accidentally actually using this constructor. see .builder()
      */
-    private LibratoReporter(Realm authRealm, String apiUrl, String name, final APIUtil.Sanitizer customSanitizer,
+    private LibratoReporter(String authHeader, String apiUrl, String name, final APIUtil.Sanitizer customSanitizer,
                             String source, long timeout, TimeUnit timeoutUnit, MetricsRegistry registry,
                             MetricPredicate predicate, Clock clock, VirtualMachineMetrics vm, boolean reportVmMetrics) {
         super(registry, name);
-        this.authRealm = authRealm;
+        this.authHeader = authHeader;
         this.sanitizer = customSanitizer;
         this.apiUrl = apiUrl;
         this.source = source;
@@ -69,7 +70,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         reportRegularMetrics(batch);
         AsyncHttpClient.BoundRequestBuilder builder = httpClient.preparePost(apiUrl);
         builder.addHeader("Content-Type", "application/json");
-        builder.setRealm(authRealm);
+        builder.addHeader("Authorization", authHeader);
 
         try {
             batch.post(builder, source, TimeUnit.MILLISECONDS.toSeconds(Clock.defaultClock().time()));
@@ -159,6 +160,12 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         private boolean reportVmMetrics = true;
 
         public Builder(String username, String token, String source) {
+            if (username == null || username.equals("")) {
+                throw new IllegalArgumentException(String.format("Username must be a non-null, non-empty string. You used '%s'", username));
+            }
+            if (token == null || token.equals("")) {
+                throw new IllegalArgumentException(String.format("Token must be a non-null, non-empty string. You used '%s'", username));
+            }
             this.username = username;
             this.token = token;
             this.source = source;
@@ -264,7 +271,9 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
          * @return a fully configured LibratoReporter
          */
         public LibratoReporter build() {
-            return new LibratoReporter(new Realm.RealmBuilder().setPrincipal(username).setPassword(token).build(),
+            String auth = String.format("Basic %s", Base64.encode((username + ":" + token).getBytes()));
+            LOG.debug("Authorize header: '{}'", auth);
+            return new LibratoReporter(auth,
                     apiUrl, name, sanitizer, source, timeout, timeoutUnit,
                     registry, predicate, clock, vm, reportVmMetrics);
         }
