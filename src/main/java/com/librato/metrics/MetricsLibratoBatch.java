@@ -79,15 +79,17 @@ public class MetricsLibratoBatch extends LibratoBatch {
             countValue = Math.round(countCalculation);
         }
 
-        addMeasurement(new MultiSampleGaugeMeasurement(
-                name,
-                countValue,
-                summarizable.sum(),
-                summarizable.max(),
-                summarizable.min(),
-                null
-        ));
-
+        // no need to publish these additional values if they are zero, plus the API will puke
+        if (countValue != null && countValue > 0) {
+            addMeasurement(new MultiSampleGaugeMeasurement(
+                    name,
+                    countValue,
+                    summarizable.sum(),
+                    summarizable.max(),
+                    summarizable.min(),
+                    null
+            ));
+        }
     }
 
     public void addSampling(String name, Sampling sampling) {

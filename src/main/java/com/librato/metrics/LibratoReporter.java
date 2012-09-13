@@ -272,7 +272,6 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
          */
         public LibratoReporter build() {
             String auth = String.format("Basic %s", Base64.encode((username + ":" + token).getBytes()));
-            LOG.debug("Authorize header: '{}'", auth);
             return new LibratoReporter(auth,
                     apiUrl, name, sanitizer, source, timeout, timeoutUnit,
                     registry, predicate, clock, vm, reportVmMetrics);
