@@ -26,10 +26,12 @@ public class MetricsLibratoBatch extends LibratoBatch {
     private static final String agentIdentifier;
 
     static {
-        InputStream pomIs = LibratoReporter.class.getClassLoader().getResourceAsStream("META-INF/maven/com.librato.metrics/metrics-librato/pom.properties");
-        BufferedReader b = new BufferedReader(new InputStreamReader(pomIs));
+        InputStream pomIs = null;
+        BufferedReader b = null;
         String version = "unknown";
         try {
+            pomIs = LibratoReporter.class.getClassLoader().getResourceAsStream("META-INF/maven/com.librato.metrics/metrics-librato/pom.properties");
+            b = new BufferedReader(new InputStreamReader(pomIs));
             String line = b.readLine();
             while (line != null)  {
                 if (line.startsWith("version")) {
@@ -38,16 +40,15 @@ public class MetricsLibratoBatch extends LibratoBatch {
                 }
                 line = b.readLine();
             }
-        } catch (IOException e) {
+        } catch (Throwable e) {
             LOG.error("Failure reading package version for librato-java", e);
         }
 
         // now coda!
-
-        pomIs = MetricsRegistry.class.getClassLoader().getResourceAsStream("META-INF/maven/com.yammer.metrics/metrics-core/pom.properties");
-        b = new BufferedReader(new InputStreamReader(pomIs));
         String codaVersion = "unknown";
         try {
+            pomIs = MetricsRegistry.class.getClassLoader().getResourceAsStream("META-INF/maven/com.yammer.metrics/metrics-core/pom.properties");
+            b = new BufferedReader(new InputStreamReader(pomIs));
             String line = b.readLine();
             while (line != null)  {
                 if (line.startsWith("version")) {
@@ -56,7 +57,7 @@ public class MetricsLibratoBatch extends LibratoBatch {
                 }
                 line = b.readLine();
             }
-        } catch (IOException e) {
+        } catch (Throwable e) {
             LOG.error("Failure reading package version for librato-java", e);
         }
 
