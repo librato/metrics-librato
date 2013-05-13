@@ -81,7 +81,9 @@ public class DummyApp {
     }
 
     public static void main(String[] args) throws Exception {
-        LibratoReporter.enable(LibratoReporter.builder(REGISTRY, "", "", "testing"), 10, TimeUnit.SECONDS);
+        String username = System.getProperty("librato.user", "");
+        String token = System.getProperty("librato.token", "");
+        LibratoReporter.enable(LibratoReporter.builder(REGISTRY, username, token, "testing"), 10, TimeUnit.SECONDS);
 
         System.err.println("Scanning all files on your hard drive...");
 
