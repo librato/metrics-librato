@@ -1,14 +1,11 @@
 package com.librato.metrics;
 
+import com.codahale.metrics.*;
 import com.ning.http.client.*;
 import com.ning.http.util.Base64;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.*;
-import com.yammer.metrics.reporting.AbstractPollingReporter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
@@ -18,7 +15,7 @@ import java.util.concurrent.TimeUnit;
  * Time: 1:08 PM
  * A reporter for publishing metrics to <a href="http://metrics.librato.com/">Librato Metrics</a>
  */
-public class LibratoReporter extends AbstractPollingReporter implements MetricProcessor<MetricsLibratoBatch> {
+public class LibratoReporter extends ScheduledReporter {
     private final String source;
 
     private final String authHeader;
@@ -28,112 +25,26 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
 
     private final APIUtil.Sanitizer sanitizer;
 
-    protected final MetricsRegistry registry;
-    protected final MetricPredicate predicate;
     protected final Clock clock;
-    protected final VirtualMachineMetrics vm;
-    protected final boolean reportVmMetrics;
 
     private final AsyncHttpClient httpClient = new AsyncHttpClient();
-
-    private static final LibratoUtil util = new LibratoUtil();
 
     private static final Logger LOG = LoggerFactory.getLogger(LibratoReporter.class);
 
     /**
      * private to prevent someone from accidentally actually using this constructor. see .builder()
      */
-    private LibratoReporter(String authHeader, String apiUrl, String name, final APIUtil.Sanitizer customSanitizer,
-                            String source, long timeout, TimeUnit timeoutUnit, MetricsRegistry registry,
-                            MetricPredicate predicate, Clock clock, VirtualMachineMetrics vm, boolean reportVmMetrics) {
-        super(registry, name);
+    private LibratoReporter(MetricRegistry registry, String name, MetricFilter filter, TimeUnit rateUnit, TimeUnit durationUnit,
+                            String authHeader, String apiUrl, final APIUtil.Sanitizer customSanitizer,
+                            String source, long timeout, TimeUnit timeoutUnit,  Clock clock) {
+        super(registry, name, filter, rateUnit, durationUnit);
         this.authHeader = authHeader;
-        this.sanitizer = customSanitizer;
         this.apiUrl = apiUrl;
+        this.sanitizer = customSanitizer;
         this.source = source;
         this.timeout = timeout;
         this.timeoutUnit = timeoutUnit;
-        this.registry = registry;
-        this.predicate = predicate;
         this.clock = clock;
-        this.vm = vm;
-        this.reportVmMetrics = reportVmMetrics;
-    }
-
-    @Override
-    public void run() {
-        // accumulate all the metrics in the batch, then post it allowing the LibratoBatch class to break up the work
-        MetricsLibratoBatch batch = new MetricsLibratoBatch(LibratoBatch.DEFAULT_BATCH_SIZE, sanitizer, timeout, timeoutUnit);
-        if (reportVmMetrics) {
-            reportVmMetrics(batch);
-        }
-        reportRegularMetrics(batch);
-        AsyncHttpClient.BoundRequestBuilder builder = httpClient.preparePost(apiUrl);
-        builder.addHeader("Content-Type", "application/json");
-        builder.addHeader("Authorization", authHeader);
-
-        try {
-            batch.post(builder, source, TimeUnit.MILLISECONDS.toSeconds(Clock.defaultClock().time()));
-        } catch (Exception e) {
-            LOG.error("Librato post failed: ", e);
-        }
-    }
-
-    protected void reportVmMetrics(MetricsLibratoBatch batch) {
-        util.addVmMetricsToBatch(vm, batch);
-    }
-
-    protected void reportRegularMetrics(MetricsLibratoBatch batch) {
-        for (Map.Entry<String,SortedMap<MetricName,Metric>> entry :
-                getMetricsRegistry().groupedMetrics(predicate).entrySet()) {
-
-            for (Map.Entry<MetricName, Metric> subEntry : entry.getValue().entrySet()) {
-                final Metric metric = subEntry.getValue();
-                if (metric != null) {
-                    try {
-                        metric.processWith(this, subEntry.getKey(), batch);
-                    } catch (Exception e) {
-                        LOG.error("Error processing regular metrics:", e);
-                    }
-                }
-            }
-        }
-    }
-
-    private String getStringName(MetricName fullName) {
-        return sanitizer.apply(util.nameToString(fullName));
-    }
-
-    @Override
-    public void processMeter(MetricName name, Metered meter, MetricsLibratoBatch batch) throws Exception {
-        batch.addMetered(getStringName(name), meter);
-    }
-
-    @Override
-    public void processCounter(MetricName name, Counter counter, MetricsLibratoBatch batch) throws Exception {
-         batch.addCounterMeasurement(getStringName(name), counter.count());
-    }
-
-    @Override
-    public void processHistogram(MetricName name, Histogram histogram, MetricsLibratoBatch batch) throws Exception {
-        String sanitizedName = getStringName(name);
-        batch.addSummarizable(sanitizedName, histogram);
-        batch.addSampling(sanitizedName, histogram);
-    }
-
-    @Override
-    public void processTimer(MetricName name, Timer timer, MetricsLibratoBatch batch) throws Exception {
-        String sanitizedName = getStringName(name);
-        batch.addMetered(sanitizedName, timer);
-        batch.addSummarizable(sanitizedName, timer);
-        batch.addSampling(sanitizedName, timer);
-    }
-
-    @Override
-    public void processGauge(MetricName name, Gauge<?> gauge, MetricsLibratoBatch batch) throws Exception {
-        if (gauge.value() instanceof Number) {
-            batch.addGauge(getStringName(name), gauge);
-        }
     }
 
     /**
@@ -151,21 +62,22 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
 
         private long timeout = 5;
         private TimeUnit timeoutUnit = TimeUnit.SECONDS;
+        private TimeUnit rateUnit = TimeUnit.SECONDS;
+        private TimeUnit durationUnit = TimeUnit.MILLISECONDS;
 
         private String name = "librato-reporter";
-        private MetricsRegistry registry = Metrics.defaultRegistry();
-        private MetricPredicate predicate = MetricPredicate.ALL;
+        private final MetricRegistry registry;
+        private MetricFilter filter =MetricFilter.ALL;
         private Clock clock = Clock.defaultClock();
-        private VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
-        private boolean reportVmMetrics = true;
 
-        public Builder(String username, String token, String source) {
+        public Builder(MetricRegistry registry, String username, String token, String source) {
             if (username == null || username.equals("")) {
                 throw new IllegalArgumentException(String.format("Username must be a non-null, non-empty string. You used '%s'", username));
             }
             if (token == null || token.equals("")) {
                 throw new IllegalArgumentException(String.format("Token must be a non-null, non-empty string. You used '%s'", username));
             }
+            this.registry = registry;
             this.username = username;
             this.token = token;
             this.source = source;
@@ -194,6 +106,22 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         }
 
         /**
+         * set the timeunit to be used for rates, as required by metrics.ScheduledReporter
+         * @param rateUnit the time unit. Default: TimeUnit.SECONDS
+         */
+        public void setRateUnit(TimeUnit rateUnit) {
+            this.rateUnit = rateUnit;
+        }
+
+        /**
+         * set the timeunit to be used for durations, as required by metrics.ScheduledReporter
+         * @param durationUnit the time unit. Default: TimeUnit.MILLISECONDS
+         */
+        public void setDurationUnit(TimeUnit durationUnit) {
+            this.durationUnit = durationUnit;
+        }
+
+        /**
          * Specify a custom name for this reporter
          * @param name the name to be used
          * @return itself
@@ -217,22 +145,12 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         }
 
         /**
-         * override default MetricsRegistry
-         * @param registry registry to be used
-         * @return itself
-         */
-        public Builder setRegistry(MetricsRegistry registry) {
-            this.registry = registry;
-            return this;
-        }
-
-        /**
          * Filter the metrics that this particular reporter publishes
-         * @param predicate the predicate by which the metrics are to be filtered
+         * @param filter the filter by which the metrics are to be filtered
          * @return itself
          */
-        public Builder setPredicate(MetricPredicate predicate) {
-            this.predicate = predicate;
+        public Builder setFilter(MetricFilter filter) {
+            this.filter = filter;
             return this;
         }
 
@@ -247,42 +165,21 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         }
 
         /**
-         * use a custom instance of VirtualMachineMetrics
-         * @param vm the instance to use
-         * @return itself
-         */
-        public Builder setVm(VirtualMachineMetrics vm) {
-            this.vm = vm;
-            return this;
-        }
-
-        /**
-         * turn on/off reporting of VM internal metrics (if, for example, you already get those elsewhere)
-         * @param reportVmMetrics true (report) or false (don't report)
-         * @return itself
-         */
-        public Builder setReportVmMetrics(boolean reportVmMetrics) {
-            this.reportVmMetrics = reportVmMetrics;
-            return this;
-        }
-
-        /**
          * Build the LibratoReporter as configured by this Builder
          * @return a fully configured LibratoReporter
          */
         public LibratoReporter build() {
             String auth = String.format("Basic %s", Base64.encode((username + ":" + token).getBytes()));
-            return new LibratoReporter(auth,
-                    apiUrl, name, sanitizer, source, timeout, timeoutUnit,
-                    registry, predicate, clock, vm, reportVmMetrics);
+            return new LibratoReporter(registry, name, filter, rateUnit, durationUnit,
+                    auth, apiUrl, sanitizer, source, timeout, timeoutUnit, clock);
         }
     }
 
     /**
      * convenience method for creating a Builder
      */
-    public static Builder builder(String username, String token, String source) {
-        return new Builder(username, token, source);
+    public static Builder builder(MetricRegistry registry, String username, String token, String source) {
+        return new Builder(registry, username, token, source);
     }
 
     /**
@@ -292,5 +189,33 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
      */
     public static void enable(Builder builder, long interval, TimeUnit unit) {
         builder.build().start(interval, unit);
+    }
+
+    @Override
+    public void report(SortedMap<String, Gauge> gauges, SortedMap<String, Counter> counters, SortedMap<String, Histogram> histograms, SortedMap<String, Meter> meters, SortedMap<String, Timer> timers) {
+        long ts = TimeUnit.MILLISECONDS.toSeconds(clock.getTime());
+        MetricsLibratoBatch batch = new MetricsLibratoBatch(LibratoBatch.DEFAULT_BATCH_SIZE, sanitizer, timeout, timeoutUnit);
+        for (SortedMap.Entry<String, Gauge> entry : gauges.entrySet()) {
+            if (entry.getValue().getValue() instanceof Number) {
+                batch.addGaugeMeasurement(entry.getKey(), (Number)(entry.getValue().getValue()));
+            }
+        }
+        for (SortedMap.Entry<String, Counter> entry : counters.entrySet()) {
+            batch.addCounterMeasurement(entry.getKey(), entry.getValue().getCount());
+        }
+        for (SortedMap.Entry<String, Histogram> entry : histograms.entrySet()) {
+            batch.addSampling(entry.getKey(), entry.getValue());
+        }
+        for (SortedMap.Entry<String, Meter> entry : meters.entrySet()) {
+            batch.addMetered(entry.getKey(), entry.getValue());
+        }
+        for (SortedMap.Entry<String, Timer> entry : timers.entrySet()) {
+            batch.addMetered(entry.getKey(), entry.getValue());
+            batch.addSampling(entry.getKey(), entry.getValue());
+        }
+        AsyncHttpClient.BoundRequestBuilder builder = httpClient.preparePost(apiUrl);
+        builder.addHeader("Content-Type", "application/json");
+        builder.addHeader("Authorization", authHeader);
+        batch.post(builder, source, ts);
     }
 }

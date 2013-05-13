@@ -1,12 +1,10 @@
 package com.librato.metrics;
 
-import com.yammer.metrics.core.*;
-import com.yammer.metrics.stats.Snapshot;
+import com.codahale.metrics.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.BufferedReader;
-import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.util.concurrent.TimeUnit;
@@ -47,7 +45,7 @@ public class MetricsLibratoBatch extends LibratoBatch {
         // now coda!
         String codaVersion = "unknown";
         try {
-            pomIs = MetricsRegistry.class.getClassLoader().getResourceAsStream("META-INF/maven/com.yammer.metrics/metrics-core/pom.properties");
+            pomIs = Metric.class.getClassLoader().getResourceAsStream("META-INF/maven/com.codahale.metrics/metrics-core/pom.properties");
             b = new BufferedReader(new InputStreamReader(pomIs));
             String line = b.readLine();
             while (line != null)  {
@@ -68,31 +66,6 @@ public class MetricsLibratoBatch extends LibratoBatch {
         super(postBatchSize, sanitizer, timeout, timeoutUnit, agentIdentifier);
     }
 
-    public void addGauge(String name, Gauge gauge) {
-        addGaugeMeasurement(name, (Number) gauge.value());
-    }
-
-    public void addSummarizable(String name, Summarizable summarizable) {
-        // TODO: add sum_squares if/when Summarizble exposes it
-        double countCalculation = summarizable.sum() / summarizable.mean();
-        Long countValue = null;
-        if (!(Double.isNaN(countCalculation) || Double.isInfinite(countCalculation))) {
-            countValue = Math.round(countCalculation);
-        }
-
-        // no need to publish these additional values if they are zero, plus the API will puke
-        if (countValue != null && countValue > 0) {
-            addMeasurement(new MultiSampleGaugeMeasurement(
-                    name,
-                    countValue,
-                    summarizable.sum(),
-                    summarizable.max(),
-                    summarizable.min(),
-                    null
-            ));
-        }
-    }
-
     public void addSampling(String name, Sampling sampling) {
         Snapshot snapshot = sampling.getSnapshot();
         addMeasurement(new SingleValueGaugeMeasurement(name+".median", snapshot.getMedian()));
@@ -101,13 +74,23 @@ public class MetricsLibratoBatch extends LibratoBatch {
         addMeasurement(new SingleValueGaugeMeasurement(name+".98th", snapshot.get98thPercentile()));
         addMeasurement(new SingleValueGaugeMeasurement(name+".99th", snapshot.get99thPercentile()));
         addMeasurement(new SingleValueGaugeMeasurement(name+".999th", snapshot.get999thPercentile()));
+        Double sum = snapshot.size() * snapshot.getMean();
+        addMeasurement(new MultiSampleGaugeMeasurement(
+                name,
+                (long) snapshot.size(),
+                sum,
+                snapshot.getMax(),
+                snapshot.getMin(),
+                null
+        ));
     }
 
     public void addMetered(String name, Metered meter) {
-        addMeasurement(new SingleValueGaugeMeasurement(name+".count", meter.count()));
-        addMeasurement(new SingleValueGaugeMeasurement(name+".meanRate", meter.meanRate()));
-        addMeasurement(new SingleValueGaugeMeasurement(name+".1MinuteRate", meter.oneMinuteRate()));
-        addMeasurement(new SingleValueGaugeMeasurement(name+".5MinuteRate", meter.fiveMinuteRate()));
-        addMeasurement(new SingleValueGaugeMeasurement(name+".15MinuteRate", meter.fifteenMinuteRate()));
+        // TODO: possible that 1/5/15min rates can be calculated server-side
+        addMeasurement(new CounterMeasurement(name+".count", meter.getCount()));
+        addMeasurement(new SingleValueGaugeMeasurement(name+".meanRate", meter.getMeanRate()));
+        addMeasurement(new SingleValueGaugeMeasurement(name+".1MinuteRate", meter.getOneMinuteRate()));
+        addMeasurement(new SingleValueGaugeMeasurement(name+".5MinuteRate", meter.getFiveMinuteRate()));
+        addMeasurement(new SingleValueGaugeMeasurement(name+".15MinuteRate", meter.getFifteenMinuteRate()));
     }
 }
