@@ -11,6 +11,7 @@ import org.slf4j.LoggerFactory;
 import java.util.Map;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ScheduledExecutorService;
 
 /**
  * User: mihasya
@@ -36,6 +37,8 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
 
     private final AsyncHttpClient httpClient = new AsyncHttpClient();
 
+    private final ScheduledExecutorService executor;
+
     private static final LibratoUtil util = new LibratoUtil();
 
     private static final Logger LOG = LoggerFactory.getLogger(LibratoReporter.class);
@@ -58,6 +61,8 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         this.clock = clock;
         this.vm = vm;
         this.reportVmMetrics = reportVmMetrics;
+
+        this.executor = registry.newScheduledThreadPool(1, name);
     }
 
     @Override
@@ -77,6 +82,38 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         } catch (Exception e) {
             LOG.error("Librato post failed: ", e);
         }
+    }
+
+    /**
+     * Starts the reporter polling at the given period.
+     *
+     * @param period    the amount of time between polls
+     * @param unit      the unit for {@code period}
+     */
+    @Override
+    public void start(long period, TimeUnit unit) {
+        executor.scheduleAtFixedRate(this, period, period, unit);
+    }
+
+    /**
+     * Shuts down the reporter polling, waiting the specific amount of time for any current polls to
+     * complete.
+     *
+     * @param timeout    the maximum time to wait
+     * @param unit       the unit for {@code timeout}
+     * @throws InterruptedException if interrupted while waiting
+     */
+    @Override
+    public void shutdown(long timeout, TimeUnit unit) throws InterruptedException {
+        super.shutdown(timeout, unit);
+        executor.shutdown();
+        executor.awaitTermination(timeout, unit);
+    }
+
+    @Override
+    public void shutdown() {
+        executor.shutdown();
+        super.shutdown();
     }
 
     protected void reportVmMetrics(MetricsLibratoBatch batch) {
