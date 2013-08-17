@@ -15,10 +15,14 @@ import java.util.regex.Pattern;
  * keeping general Librato utilities out of the way
  */
 public class LibratoUtil {
+	private LibratoUtil() {
+		// do not instantiate; static utility class
+	}
+
     /**
      * turn a MetricName into a Librato-able string key
      */
-    public String nameToString(MetricName name) {
+    public static String nameToString(MetricName name) {
         StringBuilder builder = new StringBuilder();
         builder
                 .append(name.getGroup()).append(".")
@@ -35,7 +39,7 @@ public class LibratoUtil {
     /**
      * helper method for adding VM metrics to a batch
      */
-    public void addVmMetricsToBatch(VirtualMachineMetrics vm, LibratoBatch batch) {
+    public static void addVmMetricsToBatch(VirtualMachineMetrics vm, LibratoBatch batch) {
         // memory
         batch.addGaugeMeasurement("jvm.memory.heap_usage", vm.heapUsage());
         batch.addGaugeMeasurement("jvm.memory.non_heap_usage", vm.nonHeapUsage());
