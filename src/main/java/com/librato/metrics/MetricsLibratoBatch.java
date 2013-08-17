@@ -5,10 +5,7 @@ import com.yammer.metrics.stats.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.util.concurrent.TimeUnit;
 
 /**
@@ -26,43 +23,39 @@ public class MetricsLibratoBatch extends LibratoBatch {
     private static final String agentIdentifier;
 
     static {
-        InputStream pomIs = null;
-        BufferedReader b = null;
-        String version = "unknown";
-        try {
-            pomIs = LibratoReporter.class.getClassLoader().getResourceAsStream("META-INF/maven/com.librato.metrics/metrics-librato/pom.properties");
-            b = new BufferedReader(new InputStreamReader(pomIs));
-            String line = b.readLine();
-            while (line != null)  {
-                if (line.startsWith("version")) {
-                    version = line.split("=")[1];
-                    break;
-                }
-                line = b.readLine();
-            }
-        } catch (Throwable e) {
-            LOG.error("Failure reading package version for librato-java", e);
-        }
-
-        // now coda!
-        String codaVersion = "unknown";
-        try {
-            pomIs = MetricsRegistry.class.getClassLoader().getResourceAsStream("META-INF/maven/com.yammer.metrics/metrics-core/pom.properties");
-            b = new BufferedReader(new InputStreamReader(pomIs));
-            String line = b.readLine();
-            while (line != null)  {
-                if (line.startsWith("version")) {
-                    codaVersion = line.split("=")[1];
-                    break;
-                }
-                line = b.readLine();
-            }
-        } catch (Throwable e) {
-            LOG.error("Failure reading package version for librato-java", e);
-        }
-
+        final String version = getVersion("META-INF/maven/com.librato.metrics/metrics-librato/pom.properties", LibratoReporter.class);
+        final String codaVersion = getVersion("META-INF/maven/com.yammer.metrics/metrics-core/pom.properties", MetricsRegistry.class);
         agentIdentifier = String.format("metrics-librato/%s metrics/%s", version, codaVersion);
     }
+
+    /**
+     * Attempts to get a version property from a specified resource
+     * @param path the path of the properties file resource
+     * @param klass the Class whose classloader will be used to load the resource
+     * @return the found version, "unknown" if it could not be found / determined
+     */
+    private static String getVersion(String path, Class<?> klass) {
+        try {
+            InputStream in = klass.getClassLoader().getResourceAsStream(path);
+            if (in != null) {
+                try {
+                    final BufferedReader reader = new BufferedReader(new InputStreamReader(in));
+                    String line = reader.readLine();
+                    while (line != null) {
+                        if (line.startsWith("version")) {
+                            return line.split("=")[1];
+                        }
+                    }
+                } finally {
+                    in.close();
+                }
+            }
+        } catch (IOException e) {
+            LOG.error("Could not read package version using path " + path + ":", e);
+        }
+        return "unknown";
+    }
+
 
     public MetricsLibratoBatch(int postBatchSize, APIUtil.Sanitizer sanitizer, long timeout, TimeUnit timeoutUnit) {
         super(postBatchSize, sanitizer, timeout, timeoutUnit, agentIdentifier);
@@ -95,19 +88,19 @@ public class MetricsLibratoBatch extends LibratoBatch {
 
     public void addSampling(String name, Sampling sampling) {
         Snapshot snapshot = sampling.getSnapshot();
-        addMeasurement(new SingleValueGaugeMeasurement(name+".median", snapshot.getMedian()));
-        addMeasurement(new SingleValueGaugeMeasurement(name+".75th", snapshot.get75thPercentile()));
-        addMeasurement(new SingleValueGaugeMeasurement(name+".95th", snapshot.get95thPercentile()));
-        addMeasurement(new SingleValueGaugeMeasurement(name+".98th", snapshot.get98thPercentile()));
-        addMeasurement(new SingleValueGaugeMeasurement(name+".99th", snapshot.get99thPercentile()));
-        addMeasurement(new SingleValueGaugeMeasurement(name+".999th", snapshot.get999thPercentile()));
+        addMeasurement(new SingleValueGaugeMeasurement(name + ".median", snapshot.getMedian()));
+        addMeasurement(new SingleValueGaugeMeasurement(name + ".75th", snapshot.get75thPercentile()));
+        addMeasurement(new SingleValueGaugeMeasurement(name + ".95th", snapshot.get95thPercentile()));
+        addMeasurement(new SingleValueGaugeMeasurement(name + ".98th", snapshot.get98thPercentile()));
+        addMeasurement(new SingleValueGaugeMeasurement(name + ".99th", snapshot.get99thPercentile()));
+        addMeasurement(new SingleValueGaugeMeasurement(name + ".999th", snapshot.get999thPercentile()));
     }
 
     public void addMetered(String name, Metered meter) {
-        addMeasurement(new SingleValueGaugeMeasurement(name+".count", meter.count()));
-        addMeasurement(new SingleValueGaugeMeasurement(name+".meanRate", meter.meanRate()));
-        addMeasurement(new SingleValueGaugeMeasurement(name+".1MinuteRate", meter.oneMinuteRate()));
-        addMeasurement(new SingleValueGaugeMeasurement(name+".5MinuteRate", meter.fiveMinuteRate()));
-        addMeasurement(new SingleValueGaugeMeasurement(name+".15MinuteRate", meter.fifteenMinuteRate()));
+        addMeasurement(new SingleValueGaugeMeasurement(name + ".count", meter.count()));
+        addMeasurement(new SingleValueGaugeMeasurement(name + ".meanRate", meter.meanRate()));
+        addMeasurement(new SingleValueGaugeMeasurement(name + ".1MinuteRate", meter.oneMinuteRate()));
+        addMeasurement(new SingleValueGaugeMeasurement(name + ".5MinuteRate", meter.fiveMinuteRate()));
+        addMeasurement(new SingleValueGaugeMeasurement(name + ".15MinuteRate", meter.fifteenMinuteRate()));
     }
 }

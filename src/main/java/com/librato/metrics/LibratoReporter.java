@@ -39,8 +39,6 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
 
     private final ScheduledExecutorService executor;
 
-    private static final LibratoUtil util = new LibratoUtil();
-
     private static final Logger LOG = LoggerFactory.getLogger(LibratoReporter.class);
 
     /**
@@ -95,29 +93,8 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         executor.scheduleAtFixedRate(this, period, period, unit);
     }
 
-    /**
-     * Shuts down the reporter polling, waiting the specific amount of time for any current polls to
-     * complete.
-     *
-     * @param timeout    the maximum time to wait
-     * @param unit       the unit for {@code timeout}
-     * @throws InterruptedException if interrupted while waiting
-     */
-    @Override
-    public void shutdown(long timeout, TimeUnit unit) throws InterruptedException {
-        super.shutdown(timeout, unit);
-        executor.shutdown();
-        executor.awaitTermination(timeout, unit);
-    }
-
-    @Override
-    public void shutdown() {
-        executor.shutdown();
-        super.shutdown();
-    }
-
     protected void reportVmMetrics(MetricsLibratoBatch batch) {
-        util.addVmMetricsToBatch(vm, batch);
+        LibratoUtil.addVmMetricsToBatch(vm, batch);
     }
 
     protected void reportRegularMetrics(MetricsLibratoBatch batch) {
@@ -138,27 +115,23 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     }
 
     private String getStringName(MetricName fullName) {
-        return sanitizer.apply(util.nameToString(fullName));
+        return sanitizer.apply(LibratoUtil.nameToString(fullName));
     }
 
-    @Override
     public void processMeter(MetricName name, Metered meter, MetricsLibratoBatch batch) throws Exception {
         batch.addMetered(getStringName(name), meter);
     }
 
-    @Override
     public void processCounter(MetricName name, Counter counter, MetricsLibratoBatch batch) throws Exception {
          batch.addCounterMeasurement(getStringName(name), counter.count());
     }
 
-    @Override
     public void processHistogram(MetricName name, Histogram histogram, MetricsLibratoBatch batch) throws Exception {
         String sanitizedName = getStringName(name);
         batch.addSummarizable(sanitizedName, histogram);
         batch.addSampling(sanitizedName, histogram);
     }
 
-    @Override
     public void processTimer(MetricName name, Timer timer, MetricsLibratoBatch batch) throws Exception {
         String sanitizedName = getStringName(name);
         batch.addMetered(sanitizedName, timer);
@@ -166,7 +139,6 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         batch.addSampling(sanitizedName, timer);
     }
 
-    @Override
     public void processGauge(MetricName name, Gauge<?> gauge, MetricsLibratoBatch batch) throws Exception {
         if (gauge.value() instanceof Number) {
             batch.addGauge(getStringName(name), gauge);
@@ -213,6 +185,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
          * @param apiUrl custom API endpoint to use
          * @return itself
          */
+        @SuppressWarnings("unused")
         public Builder setApiUrl(String apiUrl) {
             this.apiUrl = apiUrl;
             return this;
@@ -224,6 +197,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
          * @param timeoutUnit unit for duration
          * @return itself
          */
+        @SuppressWarnings("unused")
         public Builder setTimeout(long timeout, TimeUnit timeoutUnit) {
             this.timeout = timeout;
             this.timeoutUnit = timeoutUnit;
@@ -235,6 +209,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
          * @param name the name to be used
          * @return itself
          */
+        @SuppressWarnings("unused")
         public Builder setName(String name) {
             this.name = name;
             return this;
@@ -248,6 +223,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
          * @param sanitizer the custom sanitizer to use  (defaults to a noop sanitizer).
          * @return itself
          */
+        @SuppressWarnings("unused")
         public Builder setSanitizer(APIUtil.Sanitizer sanitizer) {
             this.sanitizer = sanitizer;
             return this;
@@ -258,6 +234,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
          * @param registry registry to be used
          * @return itself
          */
+        @SuppressWarnings("unused")
         public Builder setRegistry(MetricsRegistry registry) {
             this.registry = registry;
             return this;
@@ -268,6 +245,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
          * @param predicate the predicate by which the metrics are to be filtered
          * @return itself
          */
+        @SuppressWarnings("unused")
         public Builder setPredicate(MetricPredicate predicate) {
             this.predicate = predicate;
             return this;
@@ -278,6 +256,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
          * @param clock to be used
          * @return itself
          */
+        @SuppressWarnings("unused")
         public Builder setClock(Clock clock) {
             this.clock = clock;
             return this;
@@ -288,6 +267,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
          * @param vm the instance to use
          * @return itself
          */
+        @SuppressWarnings("unused")
         public Builder setVm(VirtualMachineMetrics vm) {
             this.vm = vm;
             return this;
