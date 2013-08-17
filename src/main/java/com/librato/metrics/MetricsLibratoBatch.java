@@ -45,6 +45,7 @@ public class MetricsLibratoBatch extends LibratoBatch {
                         if (line.startsWith("version")) {
                             return line.split("=")[1];
                         }
+                        line = reader.readLine();
                     }
                 } finally {
                     in.close();
