@@ -14,20 +14,18 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ScheduledExecutorService;
 
 /**
- * User: mihasya
- * Date: 6/14/12
- * Time: 1:08 PM
  * A reporter for publishing metrics to <a href="http://metrics.librato.com/">Librato Metrics</a>
  */
 public class LibratoReporter extends AbstractPollingReporter implements MetricProcessor<MetricsLibratoBatch> {
+    private static final Logger LOG = LoggerFactory.getLogger(LibratoReporter.class);
     private final String source;
-
     private final String authHeader;
     private final String apiUrl;
     private final long timeout;
     private final TimeUnit timeoutUnit;
-
     private final APIUtil.Sanitizer sanitizer;
+    private final AsyncHttpClient httpClient = new AsyncHttpClient();
+    private final ScheduledExecutorService executor;
 
     protected final MetricsRegistry registry;
     protected final MetricPredicate predicate;
@@ -35,11 +33,6 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     protected final VirtualMachineMetrics vm;
     protected final boolean reportVmMetrics;
 
-    private final AsyncHttpClient httpClient = new AsyncHttpClient();
-
-    private final ScheduledExecutorService executor;
-
-    private static final Logger LOG = LoggerFactory.getLogger(LibratoReporter.class);
 
     /**
      * private to prevent someone from accidentally actually using this constructor. see .builder()
@@ -59,7 +52,6 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         this.clock = clock;
         this.vm = vm;
         this.reportVmMetrics = reportVmMetrics;
-
         this.executor = registry.newScheduledThreadPool(1, name);
     }
 
@@ -74,7 +66,6 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         AsyncHttpClient.BoundRequestBuilder builder = httpClient.preparePost(apiUrl);
         builder.addHeader("Content-Type", "application/json");
         builder.addHeader("Authorization", authHeader);
-
         try {
             batch.post(builder, source, TimeUnit.MILLISECONDS.toSeconds(Clock.defaultClock().time()));
         } catch (Exception e) {
@@ -85,8 +76,8 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     /**
      * Starts the reporter polling at the given period.
      *
-     * @param period    the amount of time between polls
-     * @param unit      the unit for {@code period}
+     * @param period the amount of time between polls
+     * @param unit   the unit for {@code period}
      */
     @Override
     public void start(long period, TimeUnit unit) {
@@ -98,7 +89,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     }
 
     protected void reportRegularMetrics(MetricsLibratoBatch batch) {
-        for (Map.Entry<String,SortedMap<MetricName,Metric>> entry :
+        for (Map.Entry<String, SortedMap<MetricName, Metric>> entry :
                 getMetricsRegistry().groupedMetrics(predicate).entrySet()) {
 
             for (Map.Entry<MetricName, Metric> subEntry : entry.getValue().entrySet()) {
@@ -123,7 +114,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     }
 
     public void processCounter(MetricName name, Counter counter, MetricsLibratoBatch batch) throws Exception {
-         batch.addCounterMeasurement(getStringName(name), counter.count());
+        batch.addCounterMeasurement(getStringName(name), counter.count());
     }
 
     public void processHistogram(MetricName name, Histogram histogram, MetricsLibratoBatch batch) throws Exception {
@@ -155,12 +146,9 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         private final String source;
 
         private String apiUrl = "https://metrics-api.librato.com/v1/metrics";
-
         private APIUtil.Sanitizer sanitizer = APIUtil.noopSanitizer;
-
         private long timeout = 5;
         private TimeUnit timeoutUnit = TimeUnit.SECONDS;
-
         private String name = "librato-reporter";
         private MetricsRegistry registry = Metrics.defaultRegistry();
         private MetricPredicate predicate = MetricPredicate.ALL;
@@ -182,6 +170,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
 
         /**
          * publish to a custom URL (for internal testing)
+         *
          * @param apiUrl custom API endpoint to use
          * @return itself
          */
@@ -193,7 +182,8 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
 
         /**
          * set the HTTP timeout for a publishing attempt
-         * @param timeout duration to expect a response
+         *
+         * @param timeout     duration to expect a response
          * @param timeoutUnit unit for duration
          * @return itself
          */
@@ -206,6 +196,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
 
         /**
          * Specify a custom name for this reporter
+         *
          * @param name the name to be used
          * @return itself
          */
@@ -220,6 +211,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
          * along. Librato places some restrictions on the characters allowed in keys, so all keys are ultimately run
          * through APIUtil.lastPassSanitizer. Specifying an additional sanitizer (that runs before lastPassSanitizer)
          * allows the user to customize what they want done about invalid characters and excessively long metric names.
+         *
          * @param sanitizer the custom sanitizer to use  (defaults to a noop sanitizer).
          * @return itself
          */
@@ -231,6 +223,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
 
         /**
          * override default MetricsRegistry
+         *
          * @param registry registry to be used
          * @return itself
          */
@@ -242,6 +235,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
 
         /**
          * Filter the metrics that this particular reporter publishes
+         *
          * @param predicate the predicate by which the metrics are to be filtered
          * @return itself
          */
@@ -253,6 +247,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
 
         /**
          * use a custom clock
+         *
          * @param clock to be used
          * @return itself
          */
@@ -264,6 +259,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
 
         /**
          * use a custom instance of VirtualMachineMetrics
+         *
          * @param vm the instance to use
          * @return itself
          */
@@ -275,6 +271,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
 
         /**
          * turn on/off reporting of VM internal metrics (if, for example, you already get those elsewhere)
+         *
          * @param reportVmMetrics true (report) or false (don't report)
          * @return itself
          */
@@ -285,6 +282,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
 
         /**
          * Build the LibratoReporter as configured by this Builder
+         *
          * @return a fully configured LibratoReporter
          */
         public LibratoReporter build() {
@@ -303,9 +301,9 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     }
 
     /**
-     * @param builder a LibratoReporter.Builder
+     * @param builder  a LibratoReporter.Builder
      * @param interval the interval at which the metrics are to be reporter
-     * @param unit the timeunit for interval
+     * @param unit     the timeunit for interval
      */
     public static void enable(Builder builder, long interval, TimeUnit unit) {
         builder.build().start(interval, unit);
