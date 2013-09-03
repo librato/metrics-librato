@@ -1,5 +1,6 @@
 package com.librato.metrics;
 
+import com.librato.metrics.LibratoReporter.MetricExpansionConfig;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;
 
@@ -78,7 +79,9 @@ public class DummyApp {
 
 
     public static void main(String[] args) throws Exception {
-        LibratoReporter.enable(LibratoReporter.builder("", "", "testing").setReportVmMetrics(false), 10, TimeUnit.SECONDS);
+        LibratoReporter.enable(LibratoReporter.builder("", "", "testing")
+                                              .setReportVmMetrics(false)
+                                              .setExpansionConfig(MetricExpansionConfig.ALL), 10, TimeUnit.SECONDS);
 
         System.err.println("Scanning all files on your hard drive...");
 

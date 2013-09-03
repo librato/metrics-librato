@@ -1,5 +1,7 @@
 package com.librato.metrics;
 
+import com.librato.metrics.LibratoReporter.ExpandedMetric;
+import com.librato.metrics.LibratoReporter.MetricExpansionConfig;
 import com.yammer.metrics.core.*;
 import com.yammer.metrics.stats.Snapshot;
 import org.slf4j.Logger;
@@ -7,11 +9,16 @@ import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 
+import static com.librato.metrics.LibratoReporter.ExpandedMetric.*;
+
+
 /**
  * a LibratoBatch that understands Metrics-specific types
  */
 public class MetricsLibratoBatch extends LibratoBatch {
     private static final Logger LOG = LoggerFactory.getLogger(MetricsLibratoBatch.class);
+
+    private final MetricExpansionConfig expansionConfig;
 
     /**
      * a string used to identify the library
@@ -24,8 +31,10 @@ public class MetricsLibratoBatch extends LibratoBatch {
         agentIdentifier = String.format("metrics-librato/%s metrics/%s", version, codaVersion);
     }
 
-    public MetricsLibratoBatch(int postBatchSize, APIUtil.Sanitizer sanitizer, long timeout, TimeUnit timeoutUnit) {
+    public MetricsLibratoBatch(int postBatchSize, APIUtil.Sanitizer sanitizer, long timeout, TimeUnit timeoutUnit,
+                               MetricExpansionConfig expansionConfig) {
         super(postBatchSize, sanitizer, timeout, timeoutUnit, agentIdentifier);
+        this.expansionConfig = expansionConfig;
     }
 
     public void addGauge(String name, Gauge gauge) {
@@ -54,19 +63,25 @@ public class MetricsLibratoBatch extends LibratoBatch {
 
     public void addSampling(String name, Sampling sampling) {
         Snapshot snapshot = sampling.getSnapshot();
-        addMeasurement(new SingleValueGaugeMeasurement(name + ".median", snapshot.getMedian()));
-        addMeasurement(new SingleValueGaugeMeasurement(name + ".75th", snapshot.get75thPercentile()));
-        addMeasurement(new SingleValueGaugeMeasurement(name + ".95th", snapshot.get95thPercentile()));
-        addMeasurement(new SingleValueGaugeMeasurement(name + ".98th", snapshot.get98thPercentile()));
-        addMeasurement(new SingleValueGaugeMeasurement(name + ".99th", snapshot.get99thPercentile()));
-        addMeasurement(new SingleValueGaugeMeasurement(name + ".999th", snapshot.get999thPercentile()));
+        maybeAdd(MEDIAN, name, snapshot.getMedian());
+        maybeAdd(PCT_75, name, snapshot.get75thPercentile());
+        maybeAdd(PCT_95, name, snapshot.get95thPercentile());
+        maybeAdd(PCT_98, name, snapshot.get98thPercentile());
+        maybeAdd(PCT_99, name, snapshot.get99thPercentile());
+        maybeAdd(PCT_999, name, snapshot.get999thPercentile());
     }
 
     public void addMetered(String name, Metered meter) {
-        addMeasurement(new SingleValueGaugeMeasurement(name + ".count", meter.count()));
-        addMeasurement(new SingleValueGaugeMeasurement(name + ".meanRate", meter.meanRate()));
-        addMeasurement(new SingleValueGaugeMeasurement(name + ".1MinuteRate", meter.oneMinuteRate()));
-        addMeasurement(new SingleValueGaugeMeasurement(name + ".5MinuteRate", meter.fiveMinuteRate()));
-        addMeasurement(new SingleValueGaugeMeasurement(name + ".15MinuteRate", meter.fifteenMinuteRate()));
+        maybeAdd(COUNT, name, meter.count());
+        maybeAdd(RATE_MEAN, name, meter.meanRate());
+        maybeAdd(RATE_1_MINUTE, name, meter.oneMinuteRate());
+        maybeAdd(RATE_5_MINUTE, name, meter.fiveMinuteRate());
+        maybeAdd(RATE_15_MINUTE, name, meter.fifteenMinuteRate());
+    }
+
+    private void maybeAdd(ExpandedMetric metric, String name, Number reading) {
+        if (expansionConfig.isSet(metric)) {
+            addMeasurement(new SingleValueGaugeMeasurement(metric.buildMetricName(name), reading));
+        }
     }
 }
