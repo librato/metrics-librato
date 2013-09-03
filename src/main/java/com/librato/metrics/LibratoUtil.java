@@ -18,14 +18,15 @@ public class LibratoUtil {
      * turn a MetricName into a Librato-able string key
      */
     public static String nameToString(MetricName name) {
-        StringBuilder builder = new StringBuilder();
+        final String separator = ".";
+        final StringBuilder builder = new StringBuilder();
         builder
-                .append(name.getGroup()).append(".")
-                .append(name.getType()).append(".")
+                .append(name.getGroup()).append(separator)
+                .append(name.getType()).append(separator)
                 .append(name.getName());
 
         if (name.hasScope()) {
-            builder.append(".").append(name.getScope());
+            builder.append(separator).append(name.getScope());
         }
 
         return builder.toString();
