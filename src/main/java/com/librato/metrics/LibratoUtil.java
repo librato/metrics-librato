@@ -1,23 +1,18 @@
 package com.librato.metrics;
 
-import com.librato.metrics.LibratoBatch;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.VirtualMachineMetrics;
 
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Pattern;
 
 /**
- * User: mihasya
- * Date: 6/14/12
- * Time: 2:05 PM
- * keeping general Librato utilities out of the way
+ * Keeps general Librato utilities out of the way
  */
 public class LibratoUtil {
-	private LibratoUtil() {
-		// do not instantiate; static utility class
-	}
+    private LibratoUtil() {
+        // do not instantiate; static utility class
+    }
 
     /**
      * turn a MetricName into a Librato-able string key
@@ -44,7 +39,7 @@ public class LibratoUtil {
         batch.addGaugeMeasurement("jvm.memory.heap_usage", vm.heapUsage());
         batch.addGaugeMeasurement("jvm.memory.non_heap_usage", vm.nonHeapUsage());
         for (Map.Entry<String, Double> pool : vm.memoryPoolUsage().entrySet()) {
-            batch.addGaugeMeasurement("jvm.memory.memory_pool_usages."+pool.getKey(), pool.getValue());
+            batch.addGaugeMeasurement("jvm.memory.memory_pool_usages." + pool.getKey(), pool.getValue());
         }
 
         // threads
@@ -60,8 +55,8 @@ public class LibratoUtil {
         // garbage collection
         for (Map.Entry<String, VirtualMachineMetrics.GarbageCollectorStats> entry : vm.garbageCollectors().entrySet()) {
             final String name = "jvm.gc." + entry.getKey();
-            batch.addCounterMeasurement(name +".time", entry.getValue().getTime(TimeUnit.MILLISECONDS));
-            batch.addCounterMeasurement(name +".runs", entry.getValue().getRuns());
+            batch.addCounterMeasurement(name + ".time", entry.getValue().getTime(TimeUnit.MILLISECONDS));
+            batch.addCounterMeasurement(name + ".runs", entry.getValue().getRuns());
         }
     }
 }

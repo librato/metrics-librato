@@ -14,7 +14,6 @@ import java.util.concurrent.*;
  * copied from the ExampleRunner in metrics-core
  */
 public class DummyApp {
-
     public static class DirectoryLister {
         private final MetricsRegistry registry = Metrics.defaultRegistry();
         private final Counter counter = registry.newCounter(getClass(), "directories");
@@ -32,7 +31,6 @@ public class DummyApp {
         public List<File> list() throws Exception {
             counter.inc();
             final File[] list = timer.time(new Callable<File[]>() {
-                @Override
                 public File[] call() throws Exception {
                     return directory.listFiles();
                 }
@@ -52,7 +50,6 @@ public class DummyApp {
         }
     }
 
-
     private static final int WORKER_COUNT = 10;
     private static final BlockingQueue<File> JOBS = new LinkedBlockingQueue<File>();
     private static final ExecutorService POOL = Executors.newFixedThreadPool(WORKER_COUNT);
@@ -61,7 +58,6 @@ public class DummyApp {
     private static final Histogram DIRECTORY_SIZE = REGISTRY.newHistogram(DummyApp.class, "directory-size", false);
 
     public static class Job implements Runnable {
-        @Override
         public void run() {
             try {
                 while (!Thread.interrupted()) {

@@ -5,14 +5,10 @@ import com.yammer.metrics.stats.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.*;
 import java.util.concurrent.TimeUnit;
 
 /**
- * User: mihasya
- * Date: 6/17/12
- * Time: 10:57 PM
- * a LibratoBatch that understand Metrics-specific types
+ * a LibratoBatch that understands Metrics-specific types
  */
 public class MetricsLibratoBatch extends LibratoBatch {
     private static final Logger LOG = LoggerFactory.getLogger(MetricsLibratoBatch.class);
@@ -23,40 +19,10 @@ public class MetricsLibratoBatch extends LibratoBatch {
     private static final String agentIdentifier;
 
     static {
-        final String version = getVersion("META-INF/maven/com.librato.metrics/metrics-librato/pom.properties", LibratoReporter.class);
-        final String codaVersion = getVersion("META-INF/maven/com.yammer.metrics/metrics-core/pom.properties", MetricsRegistry.class);
+        final String version = VersionUtil.getVersion("META-INF/maven/com.librato.metrics/metrics-librato/pom.properties", LibratoReporter.class);
+        final String codaVersion = VersionUtil.getVersion("META-INF/maven/com.yammer.metrics/metrics-core/pom.properties", MetricsRegistry.class);
         agentIdentifier = String.format("metrics-librato/%s metrics/%s", version, codaVersion);
     }
-
-    /**
-     * Attempts to get a version property from a specified resource
-     * @param path the path of the properties file resource
-     * @param klass the Class whose classloader will be used to load the resource
-     * @return the found version, "unknown" if it could not be found / determined
-     */
-    private static String getVersion(String path, Class<?> klass) {
-        try {
-            InputStream in = klass.getClassLoader().getResourceAsStream(path);
-            if (in != null) {
-                try {
-                    final BufferedReader reader = new BufferedReader(new InputStreamReader(in));
-                    String line = reader.readLine();
-                    while (line != null) {
-                        if (line.startsWith("version")) {
-                            return line.split("=")[1];
-                        }
-                        line = reader.readLine();
-                    }
-                } finally {
-                    in.close();
-                }
-            }
-        } catch (IOException e) {
-            LOG.error("Could not read package version using path " + path + ":", e);
-        }
-        return "unknown";
-    }
-
 
     public MetricsLibratoBatch(int postBatchSize, APIUtil.Sanitizer sanitizer, long timeout, TimeUnit timeoutUnit) {
         super(postBatchSize, sanitizer, timeout, timeoutUnit, agentIdentifier);
@@ -67,13 +33,12 @@ public class MetricsLibratoBatch extends LibratoBatch {
     }
 
     public void addSummarizable(String name, Summarizable summarizable) {
-        // TODO: add sum_squares if/when Summarizble exposes it
+        // TODO: add sum_squares if/when Summarizable exposes it
         double countCalculation = summarizable.sum() / summarizable.mean();
         Long countValue = null;
         if (!(Double.isNaN(countCalculation) || Double.isInfinite(countCalculation))) {
             countValue = Math.round(countCalculation);
         }
-
         // no need to publish these additional values if they are zero, plus the API will puke
         if (countValue != null && countValue > 0) {
             addMeasurement(new MultiSampleGaugeMeasurement(
