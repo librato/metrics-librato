@@ -67,7 +67,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         builder.addHeader("Content-Type", "application/json");
         builder.addHeader("Authorization", authHeader);
         try {
-            batch.post(builder, source, TimeUnit.MILLISECONDS.toSeconds(Clock.defaultClock().time()));
+            batch.post(builder, source, TimeUnit.MILLISECONDS.toSeconds(this.clock.time()));
         } catch (Exception e) {
             LOG.error("Librato post failed: ", e);
         }
