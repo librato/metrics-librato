@@ -3,14 +3,11 @@ package com.librato.metrics;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
+import java.io.*;
 
 /**
  * Encapsulates logic about versions found in POM files
- *
+ * <p/>
  * TODO: move this into librato-java as the same versioning logic is used there.
  */
 public class VersionUtil {
