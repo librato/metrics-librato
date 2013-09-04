@@ -1,6 +1,6 @@
 package com.librato.metrics;
 
-import com.ning.http.client.*;
+import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.util.Base64;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;
@@ -12,8 +12,8 @@ import java.util.EnumSet;
 import java.util.Map;
 import java.util.Set;
 import java.util.SortedMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A reporter for publishing metrics to <a href="http://metrics.librato.com/">Librato Metrics</a>
@@ -64,7 +64,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     public void run() {
         // accumulate all the metrics in the batch, then post it allowing the LibratoBatch class to break up the work
         MetricsLibratoBatch batch =
-            new MetricsLibratoBatch(LibratoBatch.DEFAULT_BATCH_SIZE, sanitizer, timeout, timeoutUnit, expansionConfig);
+                new MetricsLibratoBatch(LibratoBatch.DEFAULT_BATCH_SIZE, sanitizer, timeout, timeoutUnit, expansionConfig);
         if (reportVmMetrics) {
             reportVmMetrics(batch);
         }
@@ -292,12 +292,12 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
          * such as percentiles and rates.
          *
          * @param expansionConfig the configuration
-         * @See {@link ExpandedMetric}
          * @return itself
+         * @See {@link ExpandedMetric}
          */
         public Builder setExpansionConfig(MetricExpansionConfig expansionConfig) {
-          this.expansionConfig = expansionConfig;
-          return this;
+            this.expansionConfig = expansionConfig;
+            return this;
         }
 
         /**
@@ -321,41 +321,42 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     }
 
     public static enum ExpandedMetric {
-      // sampling
-      MEDIAN("median"),
-      PCT_75("75th"),
-      PCT_95("95th"),
-      PCT_98("98th"),
-      PCT_99("99th"),
-      PCT_999("999th"),
-      // metered
-      COUNT("count"),
-      RATE_MEAN("meanRate"),
-      RATE_1_MINUTE("1MinuteRate"),
-      RATE_5_MINUTE("5MinuteRate"),
-      RATE_15_MINUTE("15MinuteRate");
+        // sampling
+        MEDIAN("median"),
+        PCT_75("75th"),
+        PCT_95("95th"),
+        PCT_98("98th"),
+        PCT_99("99th"),
+        PCT_999("999th"),
+        // metered
+        COUNT("count"),
+        RATE_MEAN("meanRate"),
+        RATE_1_MINUTE("1MinuteRate"),
+        RATE_5_MINUTE("5MinuteRate"),
+        RATE_15_MINUTE("15MinuteRate");
 
-      private String displayName;
+        private final String displayName;
 
-      public String buildMetricName(String metric) {
-        StringBuilder sb = new StringBuilder(metric);
-        sb.append('.').append(this.displayName);
-        return sb.toString();
-      }
+        public String buildMetricName(String metric) {
+            return new StringBuilder(metric)
+                    .append(".")
+                    .append(displayName)
+                    .toString();
+        }
 
-      private ExpandedMetric(String displayName) {
-        this.displayName = displayName;
-      }
+        private ExpandedMetric(String displayName) {
+            this.displayName = displayName;
+        }
     }
 
     /**
      * Configures how to report "expanded" metrics derived from meters and histograms (e.g. percentiles,
      * rates, etc). Default is to report everything.
+     *
      * @see ExpandedMetric
      */
     public static class MetricExpansionConfig {
         public static MetricExpansionConfig ALL = new MetricExpansionConfig(EnumSet.allOf(ExpandedMetric.class));
-
         private final Set<ExpandedMetric> enabled;
 
         public MetricExpansionConfig(Set<ExpandedMetric> enabled) {
