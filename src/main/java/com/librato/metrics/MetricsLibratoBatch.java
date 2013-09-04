@@ -13,8 +13,9 @@ import static com.librato.metrics.LibratoReporter.ExpandedMetric.*;
 /**
  * a LibratoBatch that understands Metrics-specific types
  */
-public class MetricsLibratoBatch extends LibratoBatch {
+public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurements {
     private final MetricExpansionConfig expansionConfig;
+    private final AddsMeasurements addsMeasurements;
 
     /**
      * a string used to identify the library
@@ -27,16 +28,34 @@ public class MetricsLibratoBatch extends LibratoBatch {
         AGENT_IDENTIFIER = String.format("metrics-librato/%s metrics/%s", version, codaVersion);
     }
 
+    /**
+     * Public constructor.
+     */
     public MetricsLibratoBatch(int postBatchSize,
                                APIUtil.Sanitizer sanitizer,
                                long timeout,
                                TimeUnit timeoutUnit,
                                MetricExpansionConfig expansionConfig) {
         super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER);
-        if (expansionConfig == null) {
-            throw new IllegalArgumentException("An expansion config must be supplied");
-        }
-        this.expansionConfig = expansionConfig;
+        this.expansionConfig = Preconditions.checkNotNull(expansionConfig, "expansion config may not be null");
+        this.addsMeasurements = this;
+    }
+
+    /**
+     * Protected constructor. Uses the {@link AddsMeasurements} instance to delegate the reponsibility of
+     * adding a measurement to the batch.
+     *
+     * Visible for testing
+     */
+    MetricsLibratoBatch(int postBatchSize,
+                        APIUtil.Sanitizer sanitizer,
+                        long timeout,
+                        TimeUnit timeoutUnit,
+                        MetricExpansionConfig expansionConfig,
+                        AddsMeasurements addsMeasurements) {
+        super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER);
+        this.expansionConfig = Preconditions.checkNotNull(expansionConfig, "expansion config may not be null");
+        this.addsMeasurements = Preconditions.checkNotNull(addsMeasurements, "addsMeasurements may not be null");
     }
 
     public void addGauge(String name, Gauge gauge) {
@@ -83,7 +102,8 @@ public class MetricsLibratoBatch extends LibratoBatch {
 
     private void maybeAdd(ExpandedMetric metric, String name, Number reading) {
         if (expansionConfig.isSet(metric)) {
-            addMeasurement(new SingleValueGaugeMeasurement(metric.buildMetricName(name), reading));
+            final String metricName = metric.buildMetricName(name);
+            addsMeasurements.addMeasurement(new SingleValueGaugeMeasurement(metricName, reading));
         }
     }
 }
