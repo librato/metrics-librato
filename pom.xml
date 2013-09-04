@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
-
     <parent>
         <groupId>org.sonatype.oss</groupId>
         <artifactId>oss-parent</artifactId>
@@ -10,8 +10,10 @@
     <groupId>com.librato.metrics</groupId>
     <artifactId>metrics-librato</artifactId>
     <name>Metrics Librato Support</name>
-    <version>2.2.0.3-SNAPSHOT</version>
-    <description>The LibratoReporter class runs in the background, publishing metrics to the Librato Metrics API at the specified interval.</description>
+    <version>2.2.1.0-SNAPSHOT</version>
+    <description>The LibratoReporter class runs in the background, publishing metrics to the Librato Metrics API at the
+        specified interval.
+    </description>
     <url>https://github.com/librato/metrics-librato</url>
     <licenses>
         <license>
@@ -25,7 +27,6 @@
         <connection>scm:git:git@github.com:librato/metrics-librato.git</connection>
         <developerConnection>scm:git:git@github.com:librato/metrics-librato.git</developerConnection>
     </scm>
-
     <developers>
         <developer>
             <id>mihasya</id>
@@ -42,7 +43,6 @@
         </developer>
     </developers>
     <packaging>jar</packaging>
-
     <build>
         <pluginManagement>
             <plugins>
@@ -60,6 +60,30 @@
                     <artifactId>maven-release-plugin</artifactId>
                     <version>2.4.1</version>
                 </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <executions>
+                        <execution>
+                            <id>attach-sources</id>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <executions>
+                        <execution>
+                            <id>attach-javadocs</id>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
             </plugins>
         </pluginManagement>
     </build>
@@ -71,7 +95,6 @@
             <type>jar</type>
             <scope>compile</scope>
         </dependency>
-
         <dependency>
             <groupId>com.yammer.metrics</groupId>
             <artifactId>metrics-core</artifactId>
@@ -79,20 +102,17 @@
             <type>jar</type>
             <scope>compile</scope>
         </dependency>
-
         <dependency>
             <groupId>junit</groupId>
             <artifactId>junit-dep</artifactId>
             <version>4.10</version>
             <scope>test</scope>
         </dependency>
-
         <dependency>
             <groupId>com.ning</groupId>
             <artifactId>async-http-client</artifactId>
             <version>1.7.4</version>
         </dependency>
-
         <dependency>
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-api</artifactId>
@@ -102,6 +122,12 @@
             <groupId>org.slf4j</groupId>
             <artifactId>slf4j-simple</artifactId>
             <version>1.6.6</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.mockito</groupId>
+            <artifactId>mockito-all</artifactId>
+            <version>1.8.4</version>
             <scope>test</scope>
         </dependency>
     </dependencies>

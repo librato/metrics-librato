@@ -1,6 +1,6 @@
 package com.librato.metrics;
 
-import com.ning.http.client.*;
+import com.ning.http.client.AsyncHttpClient;
 import com.ning.http.util.Base64;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;
@@ -8,10 +8,12 @@ import com.yammer.metrics.reporting.AbstractPollingReporter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.EnumSet;
 import java.util.Map;
+import java.util.Set;
 import java.util.SortedMap;
-import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 /**
  * A reporter for publishing metrics to <a href="http://metrics.librato.com/">Librato Metrics</a>
@@ -32,6 +34,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     protected final Clock clock;
     protected final VirtualMachineMetrics vm;
     protected final boolean reportVmMetrics;
+    protected final MetricExpansionConfig expansionConfig;
 
 
     /**
@@ -39,7 +42,8 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
      */
     private LibratoReporter(String authHeader, String apiUrl, String name, final APIUtil.Sanitizer customSanitizer,
                             String source, long timeout, TimeUnit timeoutUnit, MetricsRegistry registry,
-                            MetricPredicate predicate, Clock clock, VirtualMachineMetrics vm, boolean reportVmMetrics) {
+                            MetricPredicate predicate, Clock clock, VirtualMachineMetrics vm, boolean reportVmMetrics,
+                            MetricExpansionConfig expansionConfig) {
         super(registry, name);
         this.authHeader = authHeader;
         this.sanitizer = customSanitizer;
@@ -52,13 +56,15 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         this.clock = clock;
         this.vm = vm;
         this.reportVmMetrics = reportVmMetrics;
+        this.expansionConfig = expansionConfig;
         this.executor = registry.newScheduledThreadPool(1, name);
     }
 
     @Override
     public void run() {
         // accumulate all the metrics in the batch, then post it allowing the LibratoBatch class to break up the work
-        MetricsLibratoBatch batch = new MetricsLibratoBatch(LibratoBatch.DEFAULT_BATCH_SIZE, sanitizer, timeout, timeoutUnit);
+        MetricsLibratoBatch batch =
+                new MetricsLibratoBatch(LibratoBatch.DEFAULT_BATCH_SIZE, sanitizer, timeout, timeoutUnit, expansionConfig);
         if (reportVmMetrics) {
             reportVmMetrics(batch);
         }
@@ -155,6 +161,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         private Clock clock = Clock.defaultClock();
         private VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
         private boolean reportVmMetrics = true;
+        private MetricExpansionConfig expansionConfig = MetricExpansionConfig.ALL;
 
         public Builder(String username, String token, String source) {
             if (username == null || username.equals("")) {
@@ -281,6 +288,19 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         }
 
         /**
+         * Enables control over how the reporter generates 'expanded' metrics from meters and histograms,
+         * such as percentiles and rates.
+         *
+         * @param expansionConfig the configuration
+         * @return itself
+         * @See {@link ExpandedMetric}
+         */
+        public Builder setExpansionConfig(MetricExpansionConfig expansionConfig) {
+            this.expansionConfig = expansionConfig;
+            return this;
+        }
+
+        /**
          * Build the LibratoReporter as configured by this Builder
          *
          * @return a fully configured LibratoReporter
@@ -289,7 +309,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
             String auth = String.format("Basic %s", Base64.encode((username + ":" + token).getBytes()));
             return new LibratoReporter(auth,
                     apiUrl, name, sanitizer, source, timeout, timeoutUnit,
-                    registry, predicate, clock, vm, reportVmMetrics);
+                    registry, predicate, clock, vm, reportVmMetrics, expansionConfig);
         }
     }
 
@@ -298,6 +318,54 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
      */
     public static Builder builder(String username, String token, String source) {
         return new Builder(username, token, source);
+    }
+
+    public static enum ExpandedMetric {
+        // sampling
+        MEDIAN("median"),
+        PCT_75("75th"),
+        PCT_95("95th"),
+        PCT_98("98th"),
+        PCT_99("99th"),
+        PCT_999("999th"),
+        // metered
+        COUNT("count"),
+        RATE_MEAN("meanRate"),
+        RATE_1_MINUTE("1MinuteRate"),
+        RATE_5_MINUTE("5MinuteRate"),
+        RATE_15_MINUTE("15MinuteRate");
+
+        private final String displayName;
+
+        public String buildMetricName(String metric) {
+            return new StringBuilder(metric)
+                    .append(".")
+                    .append(displayName)
+                    .toString();
+        }
+
+        private ExpandedMetric(String displayName) {
+            this.displayName = displayName;
+        }
+    }
+
+    /**
+     * Configures how to report "expanded" metrics derived from meters and histograms (e.g. percentiles,
+     * rates, etc). Default is to report everything.
+     *
+     * @see ExpandedMetric
+     */
+    public static class MetricExpansionConfig {
+        public static MetricExpansionConfig ALL = new MetricExpansionConfig(EnumSet.allOf(ExpandedMetric.class));
+        private final Set<ExpandedMetric> enabled;
+
+        public MetricExpansionConfig(Set<ExpandedMetric> enabled) {
+            this.enabled = EnumSet.copyOf(enabled);
+        }
+
+        public boolean isSet(ExpandedMetric metric) {
+            return enabled.contains(metric);
+        }
     }
 
     /**
