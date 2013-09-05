@@ -9,7 +9,7 @@
     <groupId>com.librato.metrics</groupId>
     <artifactId>metrics-librato</artifactId>
     <name>Metrics Librato Support</name>
-    <version>2.2.1.1-SNAPSHOT</version>
+    <version>2.2.0.2-SNAPSHOT</version>
     <description>The LibratoReporter class runs in the background, publishing metrics to the Librato Metrics API at the
         specified interval.
     </description>
