@@ -32,12 +32,13 @@ public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurement
      * Public constructor.
      */
     public MetricsLibratoBatch(int postBatchSize,
-                               APIUtil.Sanitizer sanitizer,
+                               Sanitizer sanitizer,
                                long timeout,
                                TimeUnit timeoutUnit,
-                               MetricExpansionConfig expansionConfig) {
-        super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER);
-        this.expansionConfig = Preconditions.checkNotNull(expansionConfig, "expansion config may not be null");
+                               MetricExpansionConfig expansionConfig,
+                               HttpPoster httpPoster) {
+        super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER, httpPoster);
+        this.expansionConfig = Preconditions.checkNotNull(expansionConfig);
         this.addsMeasurements = this;
     }
 
@@ -48,14 +49,15 @@ public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurement
      * Visible for testing
      */
     MetricsLibratoBatch(int postBatchSize,
-                        APIUtil.Sanitizer sanitizer,
+                        Sanitizer sanitizer,
                         long timeout,
                         TimeUnit timeoutUnit,
                         MetricExpansionConfig expansionConfig,
+                        HttpPoster httpPoster,
                         AddsMeasurements addsMeasurements) {
-        super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER);
-        this.expansionConfig = Preconditions.checkNotNull(expansionConfig, "expansion config may not be null");
-        this.addsMeasurements = Preconditions.checkNotNull(addsMeasurements, "addsMeasurements may not be null");
+        super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER, httpPoster);
+        this.expansionConfig = Preconditions.checkNotNull(expansionConfig);
+        this.addsMeasurements = Preconditions.checkNotNull(addsMeasurements);
     }
 
     public void addGauge(String name, Gauge gauge) {
