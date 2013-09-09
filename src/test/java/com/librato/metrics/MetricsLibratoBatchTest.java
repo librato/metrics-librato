@@ -1,9 +1,6 @@
 package com.librato.metrics;
 
-import com.yammer.metrics.core.Metered;
-import com.yammer.metrics.core.MetricName;
-import com.yammer.metrics.core.MetricProcessor;
-import com.yammer.metrics.core.Sampling;
+import com.yammer.metrics.core.*;
 import com.yammer.metrics.stats.Snapshot;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -85,6 +82,39 @@ public class MetricsLibratoBatchTest {
         verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("oranges.15MinuteRate")));
     }
 
+    @Test
+    public void testSamplingWithSomeAndPrefix() throws Exception {
+        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.of(MEDIAN, PCT_75));
+        batch.addSampling("apples", new Sampling() {
+            public Snapshot getSnapshot() {
+                return new Snapshot(new double[]{1.0});
+            }
+        });
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples.median")));
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples.75th")));
+        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples.95th")));
+        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples.98th")));
+        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples.99th")));
+        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples.999th")));
+    }
+
+    @Test
+    public void testAddsAPrefixForAGauge() throws Exception {
+        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        batch.addGauge("apples", new Gauge() {
+            @Override
+            public Object value() {
+                return 1;
+            }
+        });
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples")));
+    }
+
+    @Test(expected = IllegalArgumentException.class)
+    public void testDoesNotAcceptEmptyStringPrefix() throws Exception {
+        newBatch("", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+    }
+
     class DumbMetered implements Metered {
         public TimeUnit rateUnit() {
             return TimeUnit.DAYS;
@@ -139,6 +169,10 @@ public class MetricsLibratoBatchTest {
     }
 
     private MetricsLibratoBatch newBatch(Set<LibratoReporter.ExpandedMetric> metrics) {
+        return newBatch(null, metrics);
+    }
+
+    private MetricsLibratoBatch newBatch(String prefix, Set<LibratoReporter.ExpandedMetric> metrics) {
         final int postBatchSize = 100;
         final Sanitizer sanitizer = Sanitizer.NO_OP;
         final LibratoReporter.MetricExpansionConfig expansionConfig = new LibratoReporter.MetricExpansionConfig(EnumSet.copyOf(metrics));
@@ -149,6 +183,7 @@ public class MetricsLibratoBatchTest {
                 TimeUnit.SECONDS,
                 expansionConfig,
                 httpPoster,
-                addsMeasurements);
+                addsMeasurements,
+                prefix);
     }
 }
