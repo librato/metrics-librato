@@ -24,6 +24,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     private final Sanitizer sanitizer;
     private final ScheduledExecutorService executor;
     private final HttpPoster httpPoster;
+    private final String prefix;
 
     protected final MetricsRegistry registry;
     protected final MetricPredicate predicate;
@@ -46,7 +47,8 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
                             VirtualMachineMetrics vm,
                             boolean reportVmMetrics,
                             MetricExpansionConfig expansionConfig,
-                            HttpPoster httpPoster) {
+                            HttpPoster httpPoster,
+                            String prefix) {
         super(registry, name);
         this.sanitizer = customSanitizer;
         this.source = source;
@@ -60,13 +62,20 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         this.expansionConfig = expansionConfig;
         this.executor = registry.newScheduledThreadPool(1, name);
         this.httpPoster = httpPoster;
+        this.prefix = LibratoUtil.checkPrefix(prefix);
     }
 
     @Override
     public void run() {
         // accumulate all the metrics in the batch, then post it allowing the LibratoBatch class to break up the work
-        MetricsLibratoBatch batch =
-                new MetricsLibratoBatch(LibratoBatch.DEFAULT_BATCH_SIZE, sanitizer, timeout, timeoutUnit, expansionConfig, httpPoster);
+        MetricsLibratoBatch batch = new MetricsLibratoBatch(
+                LibratoBatch.DEFAULT_BATCH_SIZE,
+                sanitizer,
+                timeout,
+                timeoutUnit,
+                expansionConfig,
+                httpPoster,
+                prefix);
         if (reportVmMetrics) {
             reportVmMetrics(batch);
         }
@@ -159,10 +168,23 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         private boolean reportVmMetrics = true;
         private MetricExpansionConfig expansionConfig = MetricExpansionConfig.ALL;
         private HttpPoster httpPoster;
+        private String prefix;
 
         public Builder(String username, String token, String source) {
             this.httpPoster = NingHttpPoster.newPoster(username, token);
             this.source = source;
+        }
+
+        /**
+         * Sets a prefix that will be prepended to all metric names
+         *
+         * @param prefix the prefix
+         * @return itself
+         */
+        @SuppressWarnings("unused")
+        public Builder setPrefix(String prefix) {
+            this.prefix = prefix;
+            return this;
         }
 
         /**
@@ -308,7 +330,8 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
                     vm,
                     reportVmMetrics,
                     expansionConfig,
-                    httpPoster);
+                    httpPoster,
+                    prefix);
         }
     }
 
