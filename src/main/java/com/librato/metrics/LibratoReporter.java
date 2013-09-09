@@ -1,7 +1,5 @@
 package com.librato.metrics;
 
-import com.ning.http.client.AsyncHttpClient;
-import com.ning.http.util.Base64;
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;
 import com.yammer.metrics.reporting.AbstractPollingReporter;
@@ -21,13 +19,11 @@ import java.util.concurrent.TimeUnit;
 public class LibratoReporter extends AbstractPollingReporter implements MetricProcessor<MetricsLibratoBatch> {
     private static final Logger LOG = LoggerFactory.getLogger(LibratoReporter.class);
     private final String source;
-    private final String authHeader;
-    private final String apiUrl;
     private final long timeout;
     private final TimeUnit timeoutUnit;
-    private final APIUtil.Sanitizer sanitizer;
-    private final AsyncHttpClient httpClient = new AsyncHttpClient();
+    private final Sanitizer sanitizer;
     private final ScheduledExecutorService executor;
+    private final HttpPoster httpPoster;
 
     protected final MetricsRegistry registry;
     protected final MetricPredicate predicate;
@@ -36,18 +32,23 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     protected final boolean reportVmMetrics;
     protected final MetricExpansionConfig expansionConfig;
 
-
     /**
      * private to prevent someone from accidentally actually using this constructor. see .builder()
      */
-    private LibratoReporter(String authHeader, String apiUrl, String name, final APIUtil.Sanitizer customSanitizer,
-                            String source, long timeout, TimeUnit timeoutUnit, MetricsRegistry registry,
-                            MetricPredicate predicate, Clock clock, VirtualMachineMetrics vm, boolean reportVmMetrics,
-                            MetricExpansionConfig expansionConfig) {
+    private LibratoReporter(String name,
+                            final Sanitizer customSanitizer,
+                            String source,
+                            long timeout,
+                            TimeUnit timeoutUnit,
+                            MetricsRegistry registry,
+                            MetricPredicate predicate,
+                            Clock clock,
+                            VirtualMachineMetrics vm,
+                            boolean reportVmMetrics,
+                            MetricExpansionConfig expansionConfig,
+                            HttpPoster httpPoster) {
         super(registry, name);
-        this.authHeader = authHeader;
         this.sanitizer = customSanitizer;
-        this.apiUrl = apiUrl;
         this.source = source;
         this.timeout = timeout;
         this.timeoutUnit = timeoutUnit;
@@ -58,22 +59,21 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         this.reportVmMetrics = reportVmMetrics;
         this.expansionConfig = expansionConfig;
         this.executor = registry.newScheduledThreadPool(1, name);
+        this.httpPoster = httpPoster;
     }
 
     @Override
     public void run() {
         // accumulate all the metrics in the batch, then post it allowing the LibratoBatch class to break up the work
         MetricsLibratoBatch batch =
-                new MetricsLibratoBatch(LibratoBatch.DEFAULT_BATCH_SIZE, sanitizer, timeout, timeoutUnit, expansionConfig);
+                new MetricsLibratoBatch(LibratoBatch.DEFAULT_BATCH_SIZE, sanitizer, timeout, timeoutUnit, expansionConfig, httpPoster);
         if (reportVmMetrics) {
             reportVmMetrics(batch);
         }
         reportRegularMetrics(batch);
-        AsyncHttpClient.BoundRequestBuilder builder = httpClient.preparePost(apiUrl);
-        builder.addHeader("Content-Type", "application/json");
-        builder.addHeader("Authorization", authHeader);
         try {
-            batch.post(builder, source, TimeUnit.MILLISECONDS.toSeconds(this.clock.time()));
+            final long epoch = TimeUnit.MILLISECONDS.toSeconds(this.clock.time());
+            batch.post(source, epoch);
         } catch (Exception e) {
             LOG.error("Librato post failed: ", e);
         }
@@ -147,12 +147,8 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
      * sane default values for everything else.
      */
     public static class Builder {
-        private final String username;
-        private final String token;
         private final String source;
-
-        private String apiUrl = "https://metrics-api.librato.com/v1/metrics";
-        private APIUtil.Sanitizer sanitizer = APIUtil.noopSanitizer;
+        private Sanitizer sanitizer = Sanitizer.NO_OP;
         private long timeout = 5;
         private TimeUnit timeoutUnit = TimeUnit.SECONDS;
         private String name = "librato-reporter";
@@ -162,28 +158,22 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         private VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
         private boolean reportVmMetrics = true;
         private MetricExpansionConfig expansionConfig = MetricExpansionConfig.ALL;
+        private HttpPoster httpPoster;
 
         public Builder(String username, String token, String source) {
-            if (username == null || username.equals("")) {
-                throw new IllegalArgumentException(String.format("Username must be a non-null, non-empty string. You used '%s'", username));
-            }
-            if (token == null || token.equals("")) {
-                throw new IllegalArgumentException(String.format("Token must be a non-null, non-empty string. You used '%s'", username));
-            }
-            this.username = username;
-            this.token = token;
+            this.httpPoster = NingHttpPoster.newPoster(username, token);
             this.source = source;
         }
 
         /**
-         * publish to a custom URL (for internal testing)
+         * Sets the instance that will perform the HTTP posting
          *
-         * @param apiUrl custom API endpoint to use
+         * @param httpPoster the poster
          * @return itself
          */
         @SuppressWarnings("unused")
-        public Builder setApiUrl(String apiUrl) {
-            this.apiUrl = apiUrl;
+        public Builder setHttpPoster(HttpPoster httpPoster) {
+            this.httpPoster = httpPoster;
             return this;
         }
 
@@ -223,7 +213,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
          * @return itself
          */
         @SuppressWarnings("unused")
-        public Builder setSanitizer(APIUtil.Sanitizer sanitizer) {
+        public Builder setSanitizer(Sanitizer sanitizer) {
             this.sanitizer = sanitizer;
             return this;
         }
@@ -293,7 +283,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
          *
          * @param expansionConfig the configuration
          * @return itself
-         * @See {@link ExpandedMetric}
+         * @see {@link ExpandedMetric}
          */
         public Builder setExpansionConfig(MetricExpansionConfig expansionConfig) {
             this.expansionConfig = expansionConfig;
@@ -306,10 +296,19 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
          * @return a fully configured LibratoReporter
          */
         public LibratoReporter build() {
-            String auth = String.format("Basic %s", Base64.encode((username + ":" + token).getBytes()));
-            return new LibratoReporter(auth,
-                    apiUrl, name, sanitizer, source, timeout, timeoutUnit,
-                    registry, predicate, clock, vm, reportVmMetrics, expansionConfig);
+            return new LibratoReporter(
+                    name,
+                    sanitizer,
+                    source,
+                    timeout,
+                    timeoutUnit,
+                    registry,
+                    predicate,
+                    clock,
+                    vm,
+                    reportVmMetrics,
+                    expansionConfig,
+                    httpPoster);
         }
     }
 

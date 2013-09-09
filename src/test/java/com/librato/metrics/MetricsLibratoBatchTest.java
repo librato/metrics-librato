@@ -22,11 +22,13 @@ import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 
 public class MetricsLibratoBatchTest {
-    AddsMeasurements adds;
+    AddsMeasurements addsMeasurements;
+    HttpPoster httpPoster;
 
     @Before
     public void setUp() throws Exception {
-        adds = Mockito.mock(AddsMeasurements.class);
+        addsMeasurements = Mockito.mock(AddsMeasurements.class);
+        httpPoster = Mockito.mock(HttpPoster.class);
     }
 
     @Test
@@ -37,23 +39,23 @@ public class MetricsLibratoBatchTest {
                 return new Snapshot(new double[]{1.0});
             }
         });
-        verify(adds, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.median")));
-        verify(adds, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.75th")));
-        verify(adds, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.95th")));
-        verify(adds, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.98th")));
-        verify(adds, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.99th")));
-        verify(adds, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.999th")));
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.median")));
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.75th")));
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.95th")));
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.98th")));
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.99th")));
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.999th")));
     }
 
     @Test
     public void testMeteredWithAll() throws Exception {
         final MetricsLibratoBatch batch = newBatch(EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
         batch.addMetered("oranges", new DumbMetered());
-        verify(adds, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.count")));
-        verify(adds, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.meanRate")));
-        verify(adds, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.1MinuteRate")));
-        verify(adds, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.5MinuteRate")));
-        verify(adds, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.15MinuteRate")));
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.count")));
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.meanRate")));
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.1MinuteRate")));
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.5MinuteRate")));
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.15MinuteRate")));
     }
 
     @Test
@@ -64,23 +66,23 @@ public class MetricsLibratoBatchTest {
                 return new Snapshot(new double[]{1.0});
             }
         });
-        verify(adds, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.median")));
-        verify(adds, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.75th")));
-        verify(adds, never()).addMeasurement(argThat(HasMeasurementName.of("apples.95th")));
-        verify(adds, never()).addMeasurement(argThat(HasMeasurementName.of("apples.98th")));
-        verify(adds, never()).addMeasurement(argThat(HasMeasurementName.of("apples.99th")));
-        verify(adds, never()).addMeasurement(argThat(HasMeasurementName.of("apples.999th")));
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.median")));
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.75th")));
+        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("apples.95th")));
+        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("apples.98th")));
+        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("apples.99th")));
+        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("apples.999th")));
     }
 
     @Test
     public void testMeteredWithSome() throws Exception {
         final MetricsLibratoBatch batch = newBatch(EnumSet.of(COUNT, RATE_MEAN));
         batch.addMetered("oranges", new DumbMetered());
-        verify(adds, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.count")));
-        verify(adds, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.meanRate")));
-        verify(adds, never()).addMeasurement(argThat(HasMeasurementName.of("oranges.1MinuteRate")));
-        verify(adds, never()).addMeasurement(argThat(HasMeasurementName.of("oranges.5MinuteRate")));
-        verify(adds, never()).addMeasurement(argThat(HasMeasurementName.of("oranges.15MinuteRate")));
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.count")));
+        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.meanRate")));
+        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("oranges.1MinuteRate")));
+        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("oranges.5MinuteRate")));
+        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("oranges.15MinuteRate")));
     }
 
     class DumbMetered implements Metered {
@@ -138,13 +140,15 @@ public class MetricsLibratoBatchTest {
 
     private MetricsLibratoBatch newBatch(Set<LibratoReporter.ExpandedMetric> metrics) {
         final int postBatchSize = 100;
-        final APIUtil.Sanitizer sanitizer = APIUtil.noopSanitizer;
+        final Sanitizer sanitizer = Sanitizer.NO_OP;
         final LibratoReporter.MetricExpansionConfig expansionConfig = new LibratoReporter.MetricExpansionConfig(EnumSet.copyOf(metrics));
-        return new MetricsLibratoBatch(postBatchSize,
+        return new MetricsLibratoBatch(
+                postBatchSize,
                 sanitizer,
                 1L,
                 TimeUnit.SECONDS,
                 expansionConfig,
-                adds);
+                httpPoster,
+                addsMeasurements);
     }
 }
