@@ -16,6 +16,7 @@ import static com.librato.metrics.LibratoReporter.ExpandedMetric.*;
 public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurements {
     private final MetricExpansionConfig expansionConfig;
     private final AddsMeasurements addsMeasurements;
+    private final String prefix;
 
     /**
      * a string used to identify the library
@@ -28,6 +29,7 @@ public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurement
         AGENT_IDENTIFIER = String.format("metrics-librato/%s metrics/%s", version, codaVersion);
     }
 
+
     /**
      * Public constructor.
      */
@@ -36,10 +38,12 @@ public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurement
                                long timeout,
                                TimeUnit timeoutUnit,
                                MetricExpansionConfig expansionConfig,
-                               HttpPoster httpPoster) {
+                               HttpPoster httpPoster,
+                               String prefix) {
         super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER, httpPoster);
         this.expansionConfig = Preconditions.checkNotNull(expansionConfig);
         this.addsMeasurements = this;
+        this.prefix = LibratoUtil.checkPrefix(prefix);
     }
 
     /**
@@ -54,14 +58,16 @@ public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurement
                         TimeUnit timeoutUnit,
                         MetricExpansionConfig expansionConfig,
                         HttpPoster httpPoster,
-                        AddsMeasurements addsMeasurements) {
+                        AddsMeasurements addsMeasurements,
+                        String prefix) {
         super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER, httpPoster);
         this.expansionConfig = Preconditions.checkNotNull(expansionConfig);
         this.addsMeasurements = Preconditions.checkNotNull(addsMeasurements);
+        this.prefix = LibratoUtil.checkPrefix(prefix);
     }
 
     public void addGauge(String name, Gauge gauge) {
-        addGaugeMeasurement(name, (Number) gauge.value());
+        addsMeasurements.addMeasurement(new SingleValueGaugeMeasurement(addPrefix(name), (Number) gauge.value()));
     }
 
     public void addSummarizable(String name, Summarizable summarizable) {
@@ -104,8 +110,16 @@ public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurement
 
     private void maybeAdd(ExpandedMetric metric, String name, Number reading) {
         if (expansionConfig.isSet(metric)) {
-            final String metricName = metric.buildMetricName(name);
+            final String metricName = addPrefix(metric.buildMetricName(name));
             addsMeasurements.addMeasurement(new SingleValueGaugeMeasurement(metricName, reading));
         }
     }
+
+    private String addPrefix(String metricName) {
+        if (prefix == null || prefix.length() == 0) {
+            return metricName;
+        }
+        return prefix + "." + metricName;
+    }
+
 }

@@ -14,6 +14,13 @@ public class LibratoUtil {
         // do not instantiate; static utility class
     }
 
+    public static String checkPrefix(String prefix) {
+        if ("".equals(prefix)) {
+            throw new IllegalArgumentException("Prefix may either be null or a non-empty string");
+        }
+        return prefix;
+    }
+
     /**
      * turn a MetricName into a Librato-able string key
      */
