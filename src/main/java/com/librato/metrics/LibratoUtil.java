@@ -1,5 +1,6 @@
 package com.librato.metrics;
 
+import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.VirtualMachineMetrics;
 

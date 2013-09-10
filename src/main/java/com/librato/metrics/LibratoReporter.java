@@ -146,9 +146,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     }
 
     public void processGauge(MetricName name, Gauge<?> gauge, MetricsLibratoBatch batch) throws Exception {
-        if (gauge.value() instanceof Number) {
-            batch.addGauge(getStringName(name), gauge);
-        }
+        batch.addGauge(getStringName(name), gauge);
     }
 
     /**
