@@ -23,8 +23,8 @@ public class MetricsLibratoBatch extends LibratoBatch {
     private static final String AGENT_IDENTIFIER;
 
     static {
-        final String version = VersionUtil.getVersion("META-INF/maven/com.librato.metrics/metrics-librato/pom.properties", LibratoReporter.class);
-        final String codaVersion = VersionUtil.getVersion("META-INF/maven/com.yammer.metrics/metrics-core/pom.properties", MetricsRegistry.class);
+        final String version = Versions.getVersion("META-INF/maven/com.librato.metrics/metrics-librato/pom.properties", LibratoReporter.class);
+        final String codaVersion = Versions.getVersion("META-INF/maven/com.yammer.metrics/metrics-core/pom.properties", MetricsRegistry.class);
         AGENT_IDENTIFIER = String.format("metrics-librato/%s metrics/%s", version, codaVersion);
     }
 
