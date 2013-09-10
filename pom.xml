@@ -91,7 +91,7 @@
         <dependency>
             <groupId>com.librato.metrics</groupId>
             <artifactId>librato-java</artifactId>
-            <version>0.1.0</version>
+            <version>0.1.1-SNAPSHOT</version>
             <type>jar</type>
             <scope>compile</scope>
         </dependency>
