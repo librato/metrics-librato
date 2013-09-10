@@ -18,6 +18,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class LibratoReporter extends AbstractPollingReporter implements MetricProcessor<MetricsLibratoBatch> {
     private static final Logger LOG = LoggerFactory.getLogger(LibratoReporter.class);
+    private final CounterGaugeConverter counterConverter = new CounterGaugeConverter();
     private final String source;
     private final long timeout;
     private final TimeUnit timeoutUnit;
@@ -75,7 +76,8 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
                 timeoutUnit,
                 expansionConfig,
                 httpPoster,
-                prefix);
+                prefix,
+                counterConverter);
         if (reportVmMetrics) {
             reportVmMetrics(batch);
         }
