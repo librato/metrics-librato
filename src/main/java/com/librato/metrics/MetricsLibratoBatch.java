@@ -38,7 +38,8 @@ public class MetricsLibratoBatch extends LibratoBatch {
                                TimeUnit timeoutUnit,
                                MetricExpansionConfig expansionConfig,
                                HttpPoster httpPoster,
-                               String prefix, CounterGaugeConverter counterConverter) {
+                               String prefix,
+                               CounterGaugeConverter counterConverter) {
         super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER, httpPoster);
         this.expansionConfig = Preconditions.checkNotNull(expansionConfig);
         this.prefix = LibratoUtil.checkPrefix(prefix);
@@ -57,7 +58,7 @@ public class MetricsLibratoBatch extends LibratoBatch {
         if (value instanceof Number) {
             final Number number = (Number)value;
             if (isANumber(number)) {
-                addMeasurement(new SingleValueGaugeMeasurement(addPrefix(name), number));
+                addGaugeMeasurement(name, number);
             }
         }
     }
