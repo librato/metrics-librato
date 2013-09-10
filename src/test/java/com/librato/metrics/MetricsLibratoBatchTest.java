@@ -14,9 +14,7 @@ import java.util.concurrent.TimeUnit;
 
 import static com.librato.metrics.LibratoReporter.ExpandedMetric.*;
 import static org.mockito.Matchers.argThat;
-import static org.mockito.Mockito.never;
-import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.*;
 
 public class MetricsLibratoBatchTest {
     AddsMeasurements addsMeasurements;
@@ -101,13 +99,35 @@ public class MetricsLibratoBatchTest {
     @Test
     public void testAddsAPrefixForAGauge() throws Exception {
         final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
-        batch.addGauge("apples", new Gauge() {
-            @Override
-            public Object value() {
-                return 1;
-            }
-        });
+        batch.addGauge("apples", new SimpleGauge(1));
         verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples")));
+    }
+
+    @Test
+    public void testDoesNotAddInfinityAsAGauge() throws Exception {
+        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        batch.addGauge("apples", new SimpleGauge(Double.POSITIVE_INFINITY));
+        verify(addsMeasurements, times(0)).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples")));
+    }
+
+    @Test
+    public void testDoesNotAddNaNAsAGauge() throws Exception {
+        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        batch.addGauge("apples", new SimpleGauge(Double.NaN));
+        verify(addsMeasurements, times(0)).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples")));
+    }
+
+    class SimpleGauge extends Gauge {
+        final Object value;
+
+        SimpleGauge(Object value) {
+            this.value = value;
+        }
+
+        @Override
+        public Object value() {
+            return value;
+        }
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -156,8 +176,9 @@ public class MetricsLibratoBatchTest {
         }
 
         public static HasMeasurementName of(String name) {
-           return new HasMeasurementName(name);
+            return new HasMeasurementName(name);
         }
+
         public boolean matches(Object o) {
             Measurement measurement = (Measurement) o;
             return measurement.getName().equals(name);

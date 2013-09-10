@@ -49,7 +49,7 @@ public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurement
     /**
      * Protected constructor. Uses the {@link AddsMeasurements} instance to delegate the reponsibility of
      * adding a measurement to the batch.
-     *
+     * <p/>
      * Visible for testing
      */
     MetricsLibratoBatch(int postBatchSize,
@@ -66,15 +66,28 @@ public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurement
         this.prefix = LibratoUtil.checkPrefix(prefix);
     }
 
+    /**
+     * Adds the specified gauge. It will only add the gauge if the gauge value if it is numeric
+     * and is an actual number.
+     *
+     * @param name the name of the metric
+     * @param gauge the gauge
+     */
     public void addGauge(String name, Gauge gauge) {
-        addsMeasurements.addMeasurement(new SingleValueGaugeMeasurement(addPrefix(name), (Number) gauge.value()));
+        final Object value = gauge.value();
+        if (value instanceof Number) {
+            final Number number = (Number)value;
+            if (isANumber(number)) {
+                addsMeasurements.addMeasurement(new SingleValueGaugeMeasurement(addPrefix(name), number));
+            }
+        }
     }
 
     public void addSummarizable(String name, Summarizable summarizable) {
         // TODO: add sum_squares if/when Summarizable exposes it
         final double countCalculation = summarizable.sum() / summarizable.mean();
         Long countValue = null;
-        if (!(Double.isNaN(countCalculation) || Double.isInfinite(countCalculation))) {
+        if (isANumber(countCalculation)) {
             countValue = Math.round(countCalculation);
         }
         // no need to publish these additional values if they are zero, plus the API will puke
@@ -121,5 +134,17 @@ public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurement
         }
         return prefix + "." + metricName;
     }
+
+    /**
+     * Ensures that a number's value is an actual number
+     *
+     * @param number the number
+     * @return true if the number is not NaN or infinite, false otherwise
+     */
+    private boolean isANumber(Number number) {
+        final double doubleValue = number.doubleValue();
+        return !(Double.isNaN(doubleValue) || Double.isInfinite(doubleValue));
+    }
+
 
 }
