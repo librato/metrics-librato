@@ -136,10 +136,10 @@ public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurement
     }
 
     /**
-     * Determine if a number's double value is a NaN value or not
+     * Ensures that a number's value is an actual number
      *
      * @param number the number
-     * @return true if the number is not NaN, false otherwise
+     * @return true if the number is not NaN or infinite, false otherwise
      */
     private boolean isANumber(Number number) {
         final double doubleValue = number.doubleValue();
