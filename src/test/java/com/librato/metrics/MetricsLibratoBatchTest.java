@@ -13,16 +13,14 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static com.librato.metrics.LibratoReporter.ExpandedMetric.*;
-import static org.mockito.Matchers.argThat;
-import static org.mockito.Mockito.*;
+import static org.hamcrest.CoreMatchers.not;
+import static org.junit.Assert.assertThat;
 
 public class MetricsLibratoBatchTest {
-    AddsMeasurements addsMeasurements;
     HttpPoster httpPoster;
 
     @Before
     public void setUp() throws Exception {
-        addsMeasurements = Mockito.mock(AddsMeasurements.class);
         httpPoster = Mockito.mock(HttpPoster.class);
     }
 
@@ -34,23 +32,23 @@ public class MetricsLibratoBatchTest {
                 return new Snapshot(new double[]{1.0});
             }
         });
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.median")));
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.75th")));
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.95th")));
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.98th")));
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.99th")));
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.999th")));
+        assertThat(batch, HasMeasurementName.of("apples.median"));
+        assertThat(batch, HasMeasurementName.of("apples.75th"));
+        assertThat(batch, HasMeasurementName.of("apples.95th"));
+        assertThat(batch, HasMeasurementName.of("apples.98th"));
+        assertThat(batch, HasMeasurementName.of("apples.99th"));
+        assertThat(batch, HasMeasurementName.of("apples.999th"));
     }
 
     @Test
     public void testMeteredWithAll() throws Exception {
         final MetricsLibratoBatch batch = newBatch(EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
         batch.addMetered("oranges", new DumbMetered());
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.count")));
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.meanRate")));
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.1MinuteRate")));
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.5MinuteRate")));
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.15MinuteRate")));
+        assertThat(batch, HasMeasurementName.of("oranges.count"));
+        assertThat(batch, HasMeasurementName.of("oranges.meanRate"));
+        assertThat(batch, HasMeasurementName.of("oranges.1MinuteRate"));
+        assertThat(batch, HasMeasurementName.of("oranges.5MinuteRate"));
+        assertThat(batch, HasMeasurementName.of("oranges.15MinuteRate"));
     }
 
     @Test
@@ -61,23 +59,23 @@ public class MetricsLibratoBatchTest {
                 return new Snapshot(new double[]{1.0});
             }
         });
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.median")));
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("apples.75th")));
-        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("apples.95th")));
-        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("apples.98th")));
-        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("apples.99th")));
-        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("apples.999th")));
+        assertThat(batch, HasMeasurementName.of("apples.median"));
+        assertThat(batch, HasMeasurementName.of("apples.75th"));
+        assertThat(batch, not(HasMeasurementName.of("apples.95th")));
+        assertThat(batch, not(HasMeasurementName.of("apples.98th")));
+        assertThat(batch, not(HasMeasurementName.of("apples.99th")));
+        assertThat(batch, not(HasMeasurementName.of("apples.999th")));
     }
 
     @Test
     public void testMeteredWithSome() throws Exception {
         final MetricsLibratoBatch batch = newBatch(EnumSet.of(COUNT, RATE_MEAN));
         batch.addMetered("oranges", new DumbMetered());
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.count")));
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("oranges.meanRate")));
-        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("oranges.1MinuteRate")));
-        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("oranges.5MinuteRate")));
-        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("oranges.15MinuteRate")));
+        assertThat(batch, HasMeasurementName.of("oranges.count"));
+        assertThat(batch, HasMeasurementName.of("oranges.meanRate"));
+        assertThat(batch, not(HasMeasurementName.of("oranges.1MinuteRate")));
+        assertThat(batch, not(HasMeasurementName.of("oranges.5MinuteRate")));
+        assertThat(batch, not(HasMeasurementName.of("oranges.15MinuteRate")));
     }
 
     @Test
@@ -88,33 +86,33 @@ public class MetricsLibratoBatchTest {
                 return new Snapshot(new double[]{1.0});
             }
         });
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples.median")));
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples.75th")));
-        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples.95th")));
-        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples.98th")));
-        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples.99th")));
-        verify(addsMeasurements, never()).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples.999th")));
+        assertThat(batch, HasMeasurementName.of("myPrefix.apples.median"));
+        assertThat(batch, HasMeasurementName.of("myPrefix.apples.75th"));
+        assertThat(batch, not(HasMeasurementName.of("myPrefix.apples.95th")));
+        assertThat(batch, not(HasMeasurementName.of("myPrefix.apples.98th")));
+        assertThat(batch, not(HasMeasurementName.of("myPrefix.apples.99th")));
+        assertThat(batch, not(HasMeasurementName.of("myPrefix.apples.999th")));
     }
 
     @Test
     public void testAddsAPrefixForAGauge() throws Exception {
         final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
         batch.addGauge("apples", new SimpleGauge(1));
-        verify(addsMeasurements, times(1)).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples")));
+        assertThat(batch, HasMeasurementName.of("myPrefix.apples"));
     }
 
     @Test
     public void testDoesNotAddInfinityAsAGauge() throws Exception {
         final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
         batch.addGauge("apples", new SimpleGauge(Double.POSITIVE_INFINITY));
-        verify(addsMeasurements, times(0)).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples")));
+        assertThat(batch, not(HasMeasurementName.of("myPrefix.apples")));
     }
 
     @Test
     public void testDoesNotAddNaNAsAGauge() throws Exception {
         final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
         batch.addGauge("apples", new SimpleGauge(Double.NaN));
-        verify(addsMeasurements, times(0)).addMeasurement(argThat(HasMeasurementName.of("myPrefix.apples")));
+        assertThat(batch, not(HasMeasurementName.of("myPrefix.apples")));
     }
 
     class SimpleGauge extends Gauge {
@@ -168,7 +166,7 @@ public class MetricsLibratoBatchTest {
         }
     }
 
-    static class HasMeasurementName extends BaseMatcher<Measurement> {
+    static class HasMeasurementName extends BaseMatcher<LibratoBatch> {
         private final String name;
 
         public HasMeasurementName(String name) {
@@ -180,8 +178,13 @@ public class MetricsLibratoBatchTest {
         }
 
         public boolean matches(Object o) {
-            Measurement measurement = (Measurement) o;
-            return measurement.getName().equals(name);
+            LibratoBatch batch = (LibratoBatch) o;
+            for (Measurement measurement : batch.measurements) {
+                if (measurement.getName().equals(name)) {
+                    return true;
+                }
+            }
+            return false;
         }
 
         public void describeTo(Description description) {
@@ -204,7 +207,6 @@ public class MetricsLibratoBatchTest {
                 TimeUnit.SECONDS,
                 expansionConfig,
                 httpPoster,
-                addsMeasurements,
                 prefix);
     }
 }

@@ -13,9 +13,8 @@ import static com.librato.metrics.LibratoReporter.ExpandedMetric.*;
 /**
  * a LibratoBatch that understands Metrics-specific types
  */
-public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurements {
+public class MetricsLibratoBatch extends LibratoBatch {
     private final MetricExpansionConfig expansionConfig;
-    private final AddsMeasurements addsMeasurements;
     private final String prefix;
 
     /**
@@ -29,7 +28,6 @@ public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurement
         AGENT_IDENTIFIER = String.format("metrics-librato/%s metrics/%s", version, codaVersion);
     }
 
-
     /**
      * Public constructor.
      */
@@ -42,27 +40,6 @@ public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurement
                                String prefix) {
         super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER, httpPoster);
         this.expansionConfig = Preconditions.checkNotNull(expansionConfig);
-        this.addsMeasurements = this;
-        this.prefix = LibratoUtil.checkPrefix(prefix);
-    }
-
-    /**
-     * Protected constructor. Uses the {@link AddsMeasurements} instance to delegate the reponsibility of
-     * adding a measurement to the batch.
-     * <p/>
-     * Visible for testing
-     */
-    MetricsLibratoBatch(int postBatchSize,
-                        Sanitizer sanitizer,
-                        long timeout,
-                        TimeUnit timeoutUnit,
-                        MetricExpansionConfig expansionConfig,
-                        HttpPoster httpPoster,
-                        AddsMeasurements addsMeasurements,
-                        String prefix) {
-        super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER, httpPoster);
-        this.expansionConfig = Preconditions.checkNotNull(expansionConfig);
-        this.addsMeasurements = Preconditions.checkNotNull(addsMeasurements);
         this.prefix = LibratoUtil.checkPrefix(prefix);
     }
 
@@ -78,7 +55,7 @@ public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurement
         if (value instanceof Number) {
             final Number number = (Number)value;
             if (isANumber(number)) {
-                addsMeasurements.addMeasurement(new SingleValueGaugeMeasurement(addPrefix(name), number));
+                addMeasurement(new SingleValueGaugeMeasurement(addPrefix(name), number));
             }
         }
     }
@@ -103,6 +80,12 @@ public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurement
         }
     }
 
+    @Override
+    public void addMeasurement(Measurement measurement) {
+        // todo:callbacks
+        super.addMeasurement(measurement);
+    }
+
     public void addSampling(String name, Sampling sampling) {
         final Snapshot snapshot = sampling.getSnapshot();
         maybeAdd(MEDIAN, name, snapshot.getMedian());
@@ -124,7 +107,7 @@ public class MetricsLibratoBatch extends LibratoBatch implements AddsMeasurement
     private void maybeAdd(ExpandedMetric metric, String name, Number reading) {
         if (expansionConfig.isSet(metric)) {
             final String metricName = addPrefix(metric.buildMetricName(name));
-            addsMeasurements.addMeasurement(new SingleValueGaugeMeasurement(metricName, reading));
+            addMeasurement(new SingleValueGaugeMeasurement(metricName, reading));
         }
     }
 
