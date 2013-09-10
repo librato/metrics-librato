@@ -86,6 +86,16 @@ public class MetricsLibratoBatch extends LibratoBatch {
         super.addMeasurement(measurement);
     }
 
+    @Override
+    public void addCounterMeasurement(String name, Long value) {
+        super.addCounterMeasurement(addPrefix(name), value);
+    }
+
+    @Override
+    public void addGaugeMeasurement(String name, Number value) {
+        super.addGaugeMeasurement(addPrefix(name), value);
+    }
+
     public void addSampling(String name, Sampling sampling) {
         final Snapshot snapshot = sampling.getSnapshot();
         maybeAdd(MEDIAN, name, snapshot.getMedian());

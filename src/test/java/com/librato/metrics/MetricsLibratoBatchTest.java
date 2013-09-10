@@ -95,6 +95,20 @@ public class MetricsLibratoBatchTest {
     }
 
     @Test
+    public void testAddsAPrefixForAGaugeMeasurement() throws Exception {
+        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        batch.addGaugeMeasurement("apples", 1);
+        assertThat(batch, HasMeasurementName.of("myPrefix.apples"));
+    }
+
+    @Test
+    public void testAddsAPrefixForACounterMeasurement() throws Exception {
+        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        batch.addCounterMeasurement("apples", 1L);
+        assertThat(batch, HasMeasurementName.of("myPrefix.apples"));
+    }
+
+    @Test
     public void testAddsAPrefixForAGauge() throws Exception {
         final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
         batch.addGauge("apples", new SimpleGauge(1));
