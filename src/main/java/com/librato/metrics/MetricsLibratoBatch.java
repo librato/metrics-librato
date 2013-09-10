@@ -16,6 +16,7 @@ import static com.librato.metrics.LibratoReporter.ExpandedMetric.*;
 public class MetricsLibratoBatch extends LibratoBatch {
     private final MetricExpansionConfig expansionConfig;
     private final String prefix;
+    private final CounterGaugeConverter counterConverter;
 
     /**
      * a string used to identify the library
@@ -37,10 +38,12 @@ public class MetricsLibratoBatch extends LibratoBatch {
                                TimeUnit timeoutUnit,
                                MetricExpansionConfig expansionConfig,
                                HttpPoster httpPoster,
-                               String prefix) {
+                               String prefix,
+                               CounterGaugeConverter counterConverter) {
         super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER, httpPoster);
         this.expansionConfig = Preconditions.checkNotNull(expansionConfig);
         this.prefix = LibratoUtil.checkPrefix(prefix);
+        this.counterConverter = counterConverter;
     }
 
     /**
@@ -55,7 +58,7 @@ public class MetricsLibratoBatch extends LibratoBatch {
         if (value instanceof Number) {
             final Number number = (Number)value;
             if (isANumber(number)) {
-                addMeasurement(new SingleValueGaugeMeasurement(addPrefix(name), number));
+                addGaugeMeasurement(name, number);
             }
         }
     }
@@ -81,14 +84,13 @@ public class MetricsLibratoBatch extends LibratoBatch {
     }
 
     @Override
-    public void addMeasurement(Measurement measurement) {
-        // todo:callbacks
-        super.addMeasurement(measurement);
-    }
-
-    @Override
     public void addCounterMeasurement(String name, Long value) {
-        super.addCounterMeasurement(addPrefix(name), value);
+        final String metricName = addPrefix(name);
+        final Long gaugeValue = counterConverter.getGaugeValue(metricName, value);
+        if (gaugeValue != null) {
+            // call the superclass so we don't add the name prefix twice
+            super.addGaugeMeasurement(metricName, gaugeValue);
+        }
     }
 
     @Override
