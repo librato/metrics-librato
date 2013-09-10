@@ -1,6 +1,5 @@
 package com.librato.metrics;
 
-import com.yammer.metrics.core.Gauge;
 import com.yammer.metrics.core.MetricName;
 import com.yammer.metrics.core.VirtualMachineMetrics;
 
@@ -43,7 +42,7 @@ public class LibratoUtil {
     /**
      * helper method for adding VM metrics to a batch
      */
-    public static void addVmMetricsToBatch(VirtualMachineMetrics vm, LibratoBatch batch) {
+    public static void addVmMetricsToBatch(VirtualMachineMetrics vm, MetricsLibratoBatch batch) {
         // memory
         batch.addGaugeMeasurement("jvm.memory.heap_usage", vm.heapUsage());
         batch.addGaugeMeasurement("jvm.memory.non_heap_usage", vm.nonHeapUsage());
