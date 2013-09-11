@@ -73,6 +73,8 @@ Given a Coda Meter with name `foo`, the following values are reported:
 
 ### Coda Timers
 
+Coda Timers compose a Coda Meter as well as a Coda Histogram, so the values reported to Librato are the union of the values reported for these two metric types.
+
 Given a Coda Timer with name `foo`, the following values are reported:
 
 * ComplexGauge: name=foo (includes sum, count, min, max, average) See <a href="http://dev.librato.com/v1/post/metrics">extended gauge parameters</a>.
