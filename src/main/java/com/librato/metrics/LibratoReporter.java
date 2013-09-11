@@ -26,6 +26,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     private final ScheduledExecutorService executor;
     private final HttpPoster httpPoster;
     private final String prefix;
+    private final String prefixDelimiter;
 
     protected final MetricsRegistry registry;
     protected final MetricPredicate predicate;
@@ -49,7 +50,8 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
                             boolean reportVmMetrics,
                             MetricExpansionConfig expansionConfig,
                             HttpPoster httpPoster,
-                            String prefix) {
+                            String prefix,
+                            String prefixDelimiter) {
         super(registry, name);
         this.sanitizer = customSanitizer;
         this.source = source;
@@ -64,6 +66,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         this.executor = registry.newScheduledThreadPool(1, name);
         this.httpPoster = httpPoster;
         this.prefix = LibratoUtil.checkPrefix(prefix);
+        this.prefixDelimiter = prefixDelimiter;
     }
 
     @Override
@@ -77,6 +80,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
                 expansionConfig,
                 httpPoster,
                 prefix,
+                prefixDelimiter,
                 counterConverter);
         if (reportVmMetrics) {
             reportVmMetrics(batch);
@@ -169,10 +173,23 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         private MetricExpansionConfig expansionConfig = MetricExpansionConfig.ALL;
         private HttpPoster httpPoster;
         private String prefix;
+        private String prefixDelimiter = ".";
 
         public Builder(String username, String token, String source) {
             this.httpPoster = NingHttpPoster.newPoster(username, token);
             this.source = source;
+        }
+
+        /**
+         * Sets the character that will follow the prefix. Defaults to ".".
+         *
+         * @param delimiter the delimiter
+         * @return itself
+         */
+        @SuppressWarnings("unused")
+        public Builder setPrefixDelimiter(String delimiter) {
+            this.prefixDelimiter = delimiter;
+            return this;
         }
 
         /**
@@ -331,7 +348,8 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
                     reportVmMetrics,
                     expansionConfig,
                     httpPoster,
-                    prefix);
+                    prefix,
+                    prefixDelimiter);
         }
     }
 

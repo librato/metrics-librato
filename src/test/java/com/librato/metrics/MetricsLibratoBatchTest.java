@@ -96,6 +96,7 @@ public class MetricsLibratoBatchTest {
         assertThat(batch, not(HasMeasurement.of("myPrefix.apples.999th")));
     }
 
+
     @Test
     public void testAddsAPrefixForAGaugeMeasurement() throws Exception {
         final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
@@ -116,6 +117,13 @@ public class MetricsLibratoBatchTest {
         final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
         batch.addGauge("apples", new SimpleGauge(1));
         assertThat(batch, HasMeasurement.of("myPrefix.apples"));
+    }
+
+    @Test
+    public void testAddsAPrefixAndDelimiterForAGaugeMeasurement() throws Exception {
+        final MetricsLibratoBatch batch = newBatch("myPrefix", "," , EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        batch.addGaugeMeasurement("apples", 1);
+        assertThat(batch, HasMeasurement.of("myPrefix,apples"));
     }
 
     @Test
@@ -233,11 +241,15 @@ public class MetricsLibratoBatchTest {
         }
     }
 
-    private MetricsLibratoBatch newBatch(Set<LibratoReporter.ExpandedMetric> metrics) {
-        return newBatch(null, metrics);
+    private MetricsLibratoBatch newBatch(String prefix, EnumSet<LibratoReporter.ExpandedMetric> metrics) {
+        return newBatch(prefix, ".", metrics);
     }
 
-    private MetricsLibratoBatch newBatch(String prefix, Set<LibratoReporter.ExpandedMetric> metrics) {
+    private MetricsLibratoBatch newBatch(Set<LibratoReporter.ExpandedMetric> metrics) {
+        return newBatch(null, ".", metrics);
+    }
+
+    private MetricsLibratoBatch newBatch(String prefix, String prefixDelimiter, Set<LibratoReporter.ExpandedMetric> metrics) {
         final int postBatchSize = 100;
         final Sanitizer sanitizer = Sanitizer.NO_OP;
         final LibratoReporter.MetricExpansionConfig expansionConfig = new LibratoReporter.MetricExpansionConfig(EnumSet.copyOf(metrics));
@@ -249,6 +261,7 @@ public class MetricsLibratoBatchTest {
                 expansionConfig,
                 httpPoster,
                 prefix,
+                prefixDelimiter,
                 counterConverter);
     }
 }
