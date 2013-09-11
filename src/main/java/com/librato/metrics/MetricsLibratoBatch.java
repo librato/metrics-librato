@@ -4,6 +4,8 @@ import com.librato.metrics.LibratoReporter.ExpandedMetric;
 import com.librato.metrics.LibratoReporter.MetricExpansionConfig;
 import com.yammer.metrics.core.*;
 import com.yammer.metrics.stats.Snapshot;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 
@@ -14,6 +16,7 @@ import static com.librato.metrics.LibratoReporter.ExpandedMetric.*;
  * a LibratoBatch that understands Metrics-specific types
  */
 public class MetricsLibratoBatch extends LibratoBatch {
+    private static final Logger LOG = LoggerFactory.getLogger(MetricsLibratoBatch.class);
     private final MetricExpansionConfig expansionConfig;
     private final String prefix;
     private final String prefixDelimiter;
@@ -46,6 +49,11 @@ public class MetricsLibratoBatch extends LibratoBatch {
         this.prefix = LibratoUtil.checkPrefix(prefix);
         this.prefixDelimiter = delimiter;
         this.counterConverter = counterConverter;
+    }
+
+    public void post(String source, long epoch) {
+        LOG.debug("Posting measurements");
+        super.post(source, epoch);
     }
 
     /**
