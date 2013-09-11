@@ -30,7 +30,7 @@ This section describes how each of the Coda metrics translate into Librato metri
 
 ### Coda Gauges
 
-Given a Coda Counter with name "foo", the following values are reported:
+Given a Coda Counter with name `foo`, the following values are reported:
 
 * Gauge: name=foo
 
@@ -38,7 +38,7 @@ The value reported for the Gauge is the current value of the Coda Gauge at flush
 
 ### Coda Counters
 
-Given a Coda Counter with name "foo", the following values are reported:
+Given a Coda Counter with name `foo`, the following values are reported:
 
 * Gauge: name=foo
 
@@ -48,7 +48,7 @@ _Note: Librato Counters represent monotonically increasing values. Since Coda Co
 
 ### Coda Histograms
 
-Given a Coda Histogram with name "foo", the following values are reported:
+Given a Coda Histogram with name `foo`, the following values are reported:
 
 * ComplexGauge: name=foo (includes sum, count, min, max, average) See <a href="http://dev.librato.com/v1/post/metrics">extended gauge parameters</a>.
 * Gauge: name=foo.median
@@ -63,7 +63,7 @@ _Note that Coda Histogram percentiles are determined using configurable <a href=
 
 ### Coda Meters
 
-Given a Coda Meter with name "foo", the following values are reported:
+Given a Coda Meter with name `foo`, the following values are reported:
 
 * DeltaGauge: name=foo.count (represents the number of values the Coda Meter has recorded)
 * Gauge: name=foo.meanRate
@@ -73,7 +73,7 @@ Given a Coda Meter with name "foo", the following values are reported:
 
 ### Coda Timers
 
-Given a Coda Timer with name "foo", the following values are reported:
+Given a Coda Timer with name `foo`, the following values are reported:
 
 * ComplexGauge: name=foo (includes sum, count, min, max, average) See <a href="http://dev.librato.com/v1/post/metrics">extended gauge parameters</a>.
 * Gauge: name=foo.median
