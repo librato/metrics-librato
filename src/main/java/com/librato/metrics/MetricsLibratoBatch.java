@@ -16,6 +16,7 @@ import static com.librato.metrics.LibratoReporter.ExpandedMetric.*;
 public class MetricsLibratoBatch extends LibratoBatch {
     private final MetricExpansionConfig expansionConfig;
     private final String prefix;
+    private final String prefixDelimiter;
     private final CounterGaugeConverter counterConverter;
 
     /**
@@ -39,10 +40,11 @@ public class MetricsLibratoBatch extends LibratoBatch {
                                MetricExpansionConfig expansionConfig,
                                HttpPoster httpPoster,
                                String prefix,
-                               CounterGaugeConverter counterConverter) {
+                               String delimiter, CounterGaugeConverter counterConverter) {
         super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER, httpPoster);
         this.expansionConfig = Preconditions.checkNotNull(expansionConfig);
         this.prefix = LibratoUtil.checkPrefix(prefix);
+        this.prefixDelimiter = delimiter;
         this.counterConverter = counterConverter;
     }
 
@@ -127,7 +129,7 @@ public class MetricsLibratoBatch extends LibratoBatch {
         if (prefix == null || prefix.length() == 0) {
             return metricName;
         }
-        return prefix + "." + metricName;
+        return prefix + prefixDelimiter + metricName;
     }
 
     /**
