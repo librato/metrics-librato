@@ -102,6 +102,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
      */
     @Override
     public void start(long period, TimeUnit unit) {
+        LOG.debug("Reporter starting at fixed rate of every {} {}", period, unit);
         executor.scheduleAtFixedRate(this, period, period, unit);
     }
 
@@ -110,9 +111,9 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     }
 
     protected void reportRegularMetrics(MetricsLibratoBatch batch) {
-        for (Map.Entry<String, SortedMap<MetricName, Metric>> entry :
-                getMetricsRegistry().groupedMetrics(predicate).entrySet()) {
-
+        final SortedMap<String, SortedMap<MetricName, Metric>> metrics = getMetricsRegistry().groupedMetrics(predicate);
+        LOG.debug("Preparing batch of {} top level metrics", metrics.size());
+        for (Map.Entry<String, SortedMap<MetricName, Metric>> entry : metrics.entrySet()) {
             for (Map.Entry<MetricName, Metric> subEntry : entry.getValue().entrySet()) {
                 final Metric metric = subEntry.getValue();
                 if (metric != null) {
