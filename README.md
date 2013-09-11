@@ -92,5 +92,5 @@ _Note that Coda Timer percentiles are determined using configurable <a href="htt
 
 ### Librato DeltaGauges
 
-Typically Librato Gauges represent a particular value in time.  The concept of a DeltaGauge as used above addresses the use of Librato Gauges to represent monotonically increasing values over time. To do this, the DeltaGauge tracks the last recorded value for a particular Coda Metric (e.g. Timer counts). Because the delta cannot be calculated without a previous value, the reporter will omit a metric for which a DeltaGauge is used the first time that metric is seen.
+Librato Gauges represent a particular value in time.  The concept of a DeltaGauge as used above submits the delta between the current value and the previous value as the value of the Librato Gauge. Because the delta cannot be calculated without a previous value, the reporter will omit a metric for which a DeltaGauge is used the first time that metric is seen.
 
