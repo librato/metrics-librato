@@ -2,14 +2,12 @@ package com.librato.metrics;
 
 import com.yammer.metrics.Metrics;
 import com.yammer.metrics.core.*;
+import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.reporting.AbstractPollingReporter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import java.util.EnumSet;
-import java.util.Map;
-import java.util.Set;
-import java.util.SortedMap;
+import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
@@ -18,7 +16,7 @@ import java.util.concurrent.TimeUnit;
  */
 public class LibratoReporter extends AbstractPollingReporter implements MetricProcessor<MetricsLibratoBatch> {
     private static final Logger LOG = LoggerFactory.getLogger(LibratoReporter.class);
-    private final CounterGaugeConverter counterConverter = new CounterGaugeConverter();
+    private final DeltaTracker deltaTracker;
     private final String source;
     private final long timeout;
     private final TimeUnit timeoutUnit;
@@ -43,8 +41,8 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
                             String source,
                             long timeout,
                             TimeUnit timeoutUnit,
-                            MetricsRegistry registry,
-                            MetricPredicate predicate,
+                            final MetricsRegistry registry,
+                            final MetricPredicate predicate,
                             Clock clock,
                             VirtualMachineMetrics vm,
                             boolean reportVmMetrics,
@@ -67,6 +65,32 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         this.httpPoster = httpPoster;
         this.prefix = LibratoUtil.checkPrefix(prefix);
         this.prefixDelimiter = prefixDelimiter;
+        this.deltaTracker = new DeltaTracker(new DeltaMetricSupplier(registry, predicate));
+    }
+
+    /**
+     * Used to supply metrics to the delta tracker on initialization. Uses the metric name conversion
+     * to ensure that the correct names are supplied for the metric.
+     */
+    class DeltaMetricSupplier implements DeltaTracker.MetricSupplier {
+        final MetricsRegistry registry;
+        final MetricPredicate predicate;
+
+        DeltaMetricSupplier(MetricsRegistry registry, MetricPredicate predicate) {
+            this.registry = registry;
+            this.predicate = predicate;
+        }
+
+        public Map<String, Metric> getMetrics() {
+            final Map<String, Metric> map = new HashMap<String, Metric>();
+            for (Map.Entry<String, SortedMap<MetricName, Metric>> entry : registry.groupedMetrics(predicate).entrySet()) {
+                for (Map.Entry<MetricName, Metric> metricEntry : entry.getValue().entrySet()) {
+                    final String name = getStringName(metricEntry.getKey());
+                    map.put(name, metricEntry.getValue());
+                }
+            }
+            return map;
+        }
     }
 
     @Override
@@ -81,7 +105,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
                 httpPoster,
                 prefix,
                 prefixDelimiter,
-                counterConverter);
+                deltaTracker);
         if (reportVmMetrics) {
             reportVmMetrics(batch);
         }
@@ -127,33 +151,28 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         }
     }
 
-    private String getStringName(MetricName fullName) {
-        return sanitizer.apply(LibratoUtil.nameToString(fullName));
+    public void processGauge(MetricName name, Gauge<?> gauge, MetricsLibratoBatch batch) throws Exception {
+        batch.addGauge(getStringName(name), gauge);
+    }
+
+    public void processCounter(MetricName name, Counter counter, MetricsLibratoBatch batch) throws Exception {
+        batch.addCounter(getStringName(name), counter);
+    }
+
+    public void processHistogram(MetricName name, Histogram histogram, MetricsLibratoBatch batch) throws Exception {
+        batch.addHistogram(getStringName(name), histogram);
     }
 
     public void processMeter(MetricName name, Metered meter, MetricsLibratoBatch batch) throws Exception {
         batch.addMetered(getStringName(name), meter);
     }
 
-    public void processCounter(MetricName name, Counter counter, MetricsLibratoBatch batch) throws Exception {
-        batch.addCounterMeasurement(getStringName(name), counter.count());
-    }
-
-    public void processHistogram(MetricName name, Histogram histogram, MetricsLibratoBatch batch) throws Exception {
-        String sanitizedName = getStringName(name);
-        batch.addSummarizable(sanitizedName, histogram);
-        batch.addSampling(sanitizedName, histogram);
-    }
-
     public void processTimer(MetricName name, Timer timer, MetricsLibratoBatch batch) throws Exception {
-        String sanitizedName = getStringName(name);
-        batch.addMetered(sanitizedName, timer);
-        batch.addSummarizable(sanitizedName, timer);
-        batch.addSampling(sanitizedName, timer);
+        batch.addTimer(getStringName(name), timer);
     }
 
-    public void processGauge(MetricName name, Gauge<?> gauge, MetricsLibratoBatch batch) throws Exception {
-        batch.addGauge(getStringName(name), gauge);
+    private String getStringName(MetricName fullName) {
+        return sanitizer.apply(LibratoUtil.nameToString(fullName));
     }
 
     /**
@@ -379,10 +398,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         private final String displayName;
 
         public String buildMetricName(String metric) {
-            return new StringBuilder(metric)
-                    .append(".")
-                    .append(displayName)
-                    .toString();
+            return metric + "." + displayName;
         }
 
         private ExpandedMetric(String displayName) {

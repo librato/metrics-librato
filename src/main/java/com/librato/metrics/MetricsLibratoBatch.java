@@ -20,7 +20,7 @@ public class MetricsLibratoBatch extends LibratoBatch {
     private final MetricExpansionConfig expansionConfig;
     private final String prefix;
     private final String prefixDelimiter;
-    private final CounterGaugeConverter counterConverter;
+    private final DeltaTracker deltaTracker;
 
     /**
      * a string used to identify the library
@@ -43,12 +43,13 @@ public class MetricsLibratoBatch extends LibratoBatch {
                                MetricExpansionConfig expansionConfig,
                                HttpPoster httpPoster,
                                String prefix,
-                               String delimiter, CounterGaugeConverter counterConverter) {
+                               String delimiter,
+                               DeltaTracker deltaTracker) {
         super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER, httpPoster);
         this.expansionConfig = Preconditions.checkNotNull(expansionConfig);
         this.prefix = LibratoUtil.checkPrefix(prefix);
         this.prefixDelimiter = delimiter;
-        this.counterConverter = counterConverter;
+        this.deltaTracker = deltaTracker;
     }
 
     public void post(String source, long epoch) {
@@ -56,13 +57,18 @@ public class MetricsLibratoBatch extends LibratoBatch {
         super.post(source, epoch);
     }
 
-    /**
-     * Adds the specified gauge. It will only add the gauge if the gauge value if it is numeric
-     * and is an actual number.
-     *
-     * @param name the name of the metric
-     * @param gauge the gauge
-     */
+    @Override
+    public void addCounterMeasurement(String name, Long value) {
+        super.addCounterMeasurement(addPrefix(name), value);
+    }
+
+    @Override
+    public void addGaugeMeasurement(String name, Number value) {
+        super.addGaugeMeasurement(addPrefix(name), value);
+    }
+
+    // begin direct support for Coda Metrics
+
     public void addGauge(String name, Gauge gauge) {
         final Object value = gauge.value();
         if (value instanceof Number) {
@@ -73,7 +79,33 @@ public class MetricsLibratoBatch extends LibratoBatch {
         }
     }
 
-    public void addSummarizable(String name, Summarizable summarizable) {
+    public void addCounter(String name, Counter counter) {
+        addGaugeMeasurement(name, counter.count());
+    }
+
+    public void addHistogram(String name, Histogram histogram) {
+        final Long countDelta = deltaTracker.getDelta(name, histogram.count());
+        maybeAdd(COUNT, name, countDelta);
+        addSummarizable(name, histogram);
+        addSampling(name, histogram);
+    }
+
+    public void addMetered(String name, Metered meter) {
+        final Long deltaCount = deltaTracker.getDelta(name, meter.count());
+        maybeAdd(COUNT, name, deltaCount);
+        maybeAdd(RATE_MEAN, name, meter.meanRate());
+        maybeAdd(RATE_1_MINUTE, name, meter.oneMinuteRate());
+        maybeAdd(RATE_5_MINUTE, name, meter.fiveMinuteRate());
+        maybeAdd(RATE_15_MINUTE, name, meter.fifteenMinuteRate());
+    }
+
+    public void addTimer(String name, Timer timer) {
+        addMetered(name, timer);
+        addSummarizable(name, timer);
+        addSampling(name, timer);
+    }
+
+    private void addSummarizable(String name, Summarizable summarizable) {
         // TODO: add sum_squares if/when Summarizable exposes it
         final double countCalculation = summarizable.sum() / summarizable.mean();
         Long countValue = null;
@@ -93,21 +125,6 @@ public class MetricsLibratoBatch extends LibratoBatch {
         }
     }
 
-    @Override
-    public void addCounterMeasurement(String name, Long value) {
-        final String metricName = addPrefix(name);
-        final Long gaugeValue = counterConverter.getGaugeValue(metricName, value);
-        if (gaugeValue != null) {
-            // call the superclass so we don't add the name prefix twice
-            super.addGaugeMeasurement(metricName, gaugeValue);
-        }
-    }
-
-    @Override
-    public void addGaugeMeasurement(String name, Number value) {
-        super.addGaugeMeasurement(addPrefix(name), value);
-    }
-
     public void addSampling(String name, Sampling sampling) {
         final Snapshot snapshot = sampling.getSnapshot();
         maybeAdd(MEDIAN, name, snapshot.getMedian());
@@ -118,18 +135,9 @@ public class MetricsLibratoBatch extends LibratoBatch {
         maybeAdd(PCT_999, name, snapshot.get999thPercentile());
     }
 
-    public void addMetered(String name, Metered meter) {
-        maybeAdd(COUNT, name, meter.count());
-        maybeAdd(RATE_MEAN, name, meter.meanRate());
-        maybeAdd(RATE_1_MINUTE, name, meter.oneMinuteRate());
-        maybeAdd(RATE_5_MINUTE, name, meter.fiveMinuteRate());
-        maybeAdd(RATE_15_MINUTE, name, meter.fifteenMinuteRate());
-    }
-
     private void maybeAdd(ExpandedMetric metric, String name, Number reading) {
         if (expansionConfig.isSet(metric)) {
-            final String metricName = addPrefix(metric.buildMetricName(name));
-            addMeasurement(new SingleValueGaugeMeasurement(metricName, reading));
+            addGaugeMeasurement(metric.buildMetricName(name), reading);
         }
     }
 
@@ -150,6 +158,5 @@ public class MetricsLibratoBatch extends LibratoBatch {
         final double doubleValue = number.doubleValue();
         return !(Double.isNaN(doubleValue) || Double.isInfinite(doubleValue));
     }
-
 
 }
