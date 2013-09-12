@@ -1,9 +1,8 @@
 package com.librato.metrics;
 
+import com.codahale.metrics.*;
 import com.librato.metrics.LibratoReporter.ExpandedMetric;
 import com.librato.metrics.LibratoReporter.MetricExpansionConfig;
-import com.yammer.metrics.core.*;
-import com.yammer.metrics.stats.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -25,13 +24,10 @@ public class MetricsLibratoBatch extends LibratoBatch {
     /**
      * a string used to identify the library
      */
-    private static final String AGENT_IDENTIFIER;
-
-    static {
-        final String version = Versions.getVersion("META-INF/maven/com.librato.metrics/metrics-librato/pom.properties", LibratoReporter.class);
-        final String codaVersion = Versions.getVersion("META-INF/maven/com.yammer.metrics/metrics-core/pom.properties", MetricsRegistry.class);
-        AGENT_IDENTIFIER = String.format("metrics-librato/%s metrics/%s", version, codaVersion);
-    }
+    private static final String AGENT_IDENTIFIER = String.format(
+            "metrics-librato/%s metrics/%s",
+            Versions.getVersion("META-INF/maven/com.codahale.metrics/metrics-core/pom.properties", Metric.class),
+            Versions.getVersion("META-INF/maven/com.librato.metrics/metrics-librato/pom.properties", LibratoReporter.class));
 
     /**
      * Public constructor.
@@ -43,12 +39,12 @@ public class MetricsLibratoBatch extends LibratoBatch {
                                MetricExpansionConfig expansionConfig,
                                HttpPoster httpPoster,
                                String prefix,
-                               String delimiter,
+                               String prefixDelimiter,
                                DeltaTracker deltaTracker) {
         super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER, httpPoster);
         this.expansionConfig = Preconditions.checkNotNull(expansionConfig);
-        this.prefix = LibratoUtil.checkPrefix(prefix);
-        this.prefixDelimiter = delimiter;
+        this.prefix = checkPrefix(prefix);
+        this.prefixDelimiter = prefixDelimiter;
         this.deltaTracker = deltaTracker;
     }
 
@@ -70,7 +66,7 @@ public class MetricsLibratoBatch extends LibratoBatch {
     // begin direct support for Coda Metrics
 
     public void addGauge(String name, Gauge gauge) {
-        final Object value = gauge.value();
+        final Object value = gauge.getValue();
         if (value instanceof Number) {
             final Number number = (Number)value;
             if (isANumber(number)) {
@@ -80,49 +76,27 @@ public class MetricsLibratoBatch extends LibratoBatch {
     }
 
     public void addCounter(String name, Counter counter) {
-        addGaugeMeasurement(name, counter.count());
+        addGaugeMeasurement(name, counter.getCount());
     }
 
     public void addHistogram(String name, Histogram histogram) {
-        final Long countDelta = deltaTracker.getDelta(name, histogram.count());
+        final Long countDelta = deltaTracker.getDelta(name, histogram.getCount());
         maybeAdd(COUNT, name, countDelta);
-        addSummarizable(name, histogram);
         addSampling(name, histogram);
     }
 
-    public void addMetered(String name, Metered meter) {
-        final Long deltaCount = deltaTracker.getDelta(name, meter.count());
+    public void addMeter(String name, Metered meter) {
+        final Long deltaCount = deltaTracker.getDelta(name, meter.getCount());
         maybeAdd(COUNT, name, deltaCount);
-        maybeAdd(RATE_MEAN, name, meter.meanRate());
-        maybeAdd(RATE_1_MINUTE, name, meter.oneMinuteRate());
-        maybeAdd(RATE_5_MINUTE, name, meter.fiveMinuteRate());
-        maybeAdd(RATE_15_MINUTE, name, meter.fifteenMinuteRate());
+        maybeAdd(RATE_MEAN, name, meter.getMeanRate());
+        maybeAdd(RATE_1_MINUTE, name, meter.getOneMinuteRate());
+        maybeAdd(RATE_5_MINUTE, name, meter.getFiveMinuteRate());
+        maybeAdd(RATE_15_MINUTE, name, meter.getFifteenMinuteRate());
     }
 
     public void addTimer(String name, Timer timer) {
-        addMetered(name, timer);
-        addSummarizable(name, timer);
+        addMeter(name, timer);
         addSampling(name, timer);
-    }
-
-    private void addSummarizable(String name, Summarizable summarizable) {
-        // TODO: add sum_squares if/when Summarizable exposes it
-        final double countCalculation = summarizable.sum() / summarizable.mean();
-        Long countValue = null;
-        if (isANumber(countCalculation)) {
-            countValue = Math.round(countCalculation);
-        }
-        // no need to publish these additional values if they are zero, plus the API will puke
-        if (countValue != null && countValue > 0) {
-            addMeasurement(new MultiSampleGaugeMeasurement(
-                    name,
-                    countValue,
-                    summarizable.sum(),
-                    summarizable.max(),
-                    summarizable.min(),
-                    null
-            ));
-        }
     }
 
     public void addSampling(String name, Sampling sampling) {
@@ -133,6 +107,19 @@ public class MetricsLibratoBatch extends LibratoBatch {
         maybeAdd(PCT_98, name, snapshot.get98thPercentile());
         maybeAdd(PCT_99, name, snapshot.get99thPercentile());
         maybeAdd(PCT_999, name, snapshot.get999thPercentile());
+
+        final double sum = snapshot.size() * snapshot.getMean();
+        final long size = (long) snapshot.size();
+        if (size > 0) {
+            addMeasurement(
+                    new MultiSampleGaugeMeasurement(
+                            addPrefix(name),
+                            size,
+                            sum,
+                            snapshot.getMax(),
+                            snapshot.getMin(),
+                            null));
+        }
     }
 
     private void maybeAdd(ExpandedMetric metric, String name, Number reading) {
@@ -148,11 +135,18 @@ public class MetricsLibratoBatch extends LibratoBatch {
         return prefix + prefixDelimiter + metricName;
     }
 
+    private static String checkPrefix(String prefix) {
+        if ("".equals(prefix)) {
+            throw new IllegalArgumentException("Prefix may either be null or a non-empty string");
+        }
+        return prefix;
+    }
+
     /**
-     * Ensures that a number's value is an actual number
+     * Determine if a number's double value is a valid number
      *
      * @param number the number
-     * @return true if the number is not NaN or infinite, false otherwise
+     * @return true if it is neither NaN not infinity
      */
     private boolean isANumber(Number number) {
         final double doubleValue = number.doubleValue();

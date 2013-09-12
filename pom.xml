@@ -9,7 +9,7 @@
     <groupId>com.librato.metrics</groupId>
     <artifactId>metrics-librato</artifactId>
     <name>Metrics Librato Support</name>
-    <version>2.2.0.5-SNAPSHOT</version>
+    <version>3.0.1.0-SNAPSHOT</version>
     <description>The LibratoReporter class runs in the background, publishing metrics to the Librato Metrics API at the
         specified interval.
     </description>
@@ -93,12 +93,11 @@
             <artifactId>librato-java</artifactId>
             <version>0.1.1</version>
             <type>jar</type>
-            <scope>compile</scope>
         </dependency>
         <dependency>
-            <groupId>com.yammer.metrics</groupId>
+            <groupId>com.codahale.metrics</groupId>
             <artifactId>metrics-core</artifactId>
-            <version>2.2.0</version>
+            <version>3.0.1</version>
             <type>jar</type>
             <scope>compile</scope>
         </dependency>

@@ -1,16 +1,15 @@
 package com.librato.metrics;
 
-import com.yammer.metrics.core.Gauge;
+import com.codahale.metrics.Gauge;
 
-class FakeGauge extends Gauge {
+class FakeGauge implements Gauge {
     final Object value;
 
     FakeGauge(Object value) {
         this.value = value;
     }
 
-    @Override
-    public Object value() {
+    public Object getValue() {
         return value;
     }
 }

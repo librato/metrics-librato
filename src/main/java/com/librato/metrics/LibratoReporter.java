@@ -1,120 +1,83 @@
 package com.librato.metrics;
 
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.*;
-import com.yammer.metrics.core.Timer;
-import com.yammer.metrics.reporting.AbstractPollingReporter;
+import com.codahale.metrics.*;
+import com.codahale.metrics.Timer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
-import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 /**
  * A reporter for publishing metrics to <a href="http://metrics.librato.com/">Librato Metrics</a>
  */
-public class LibratoReporter extends AbstractPollingReporter implements MetricProcessor<MetricsLibratoBatch> {
+public class LibratoReporter extends ScheduledReporter {
     private static final Logger LOG = LoggerFactory.getLogger(LibratoReporter.class);
     private final DeltaTracker deltaTracker;
     private final String source;
     private final long timeout;
     private final TimeUnit timeoutUnit;
     private final Sanitizer sanitizer;
-    private final ScheduledExecutorService executor;
     private final HttpPoster httpPoster;
     private final String prefix;
     private final String prefixDelimiter;
-
-    protected final MetricsRegistry registry;
-    protected final MetricPredicate predicate;
+    protected final MetricRegistry registry;
     protected final Clock clock;
-    protected final VirtualMachineMetrics vm;
-    protected final boolean reportVmMetrics;
     protected final MetricExpansionConfig expansionConfig;
 
     /**
-     * private to prevent someone from accidentally actually using this constructor. see .builder()
+     * Private. Use builder instead.
      */
-    private LibratoReporter(String name,
-                            final Sanitizer customSanitizer,
+    private LibratoReporter(MetricRegistry registry,
+                            String name,
+                            MetricFilter filter,
+                            TimeUnit rateUnit,
+                            TimeUnit durationUnit,
+                            Sanitizer customSanitizer,
                             String source,
                             long timeout,
                             TimeUnit timeoutUnit,
-                            final MetricsRegistry registry,
-                            final MetricPredicate predicate,
                             Clock clock,
-                            VirtualMachineMetrics vm,
-                            boolean reportVmMetrics,
                             MetricExpansionConfig expansionConfig,
                             HttpPoster httpPoster,
                             String prefix,
                             String prefixDelimiter) {
-        super(registry, name);
+        super(registry, name, filter, rateUnit, durationUnit);
+        this.registry = registry;
         this.sanitizer = customSanitizer;
         this.source = source;
         this.timeout = timeout;
         this.timeoutUnit = timeoutUnit;
-        this.registry = registry;
-        this.predicate = predicate;
         this.clock = clock;
-        this.vm = vm;
-        this.reportVmMetrics = reportVmMetrics;
         this.expansionConfig = expansionConfig;
-        this.executor = registry.newScheduledThreadPool(1, name);
         this.httpPoster = httpPoster;
-        this.prefix = LibratoUtil.checkPrefix(prefix);
+        this.prefix = prefix;
         this.prefixDelimiter = prefixDelimiter;
-        this.deltaTracker = new DeltaTracker(new DeltaMetricSupplier(registry, predicate));
+        this.deltaTracker = new DeltaTracker(new DeltaMetricSupplier(registry, filter));
     }
+
 
     /**
      * Used to supply metrics to the delta tracker on initialization. Uses the metric name conversion
      * to ensure that the correct names are supplied for the metric.
      */
     class DeltaMetricSupplier implements DeltaTracker.MetricSupplier {
-        final MetricsRegistry registry;
-        final MetricPredicate predicate;
+        final MetricRegistry registry;
+        final MetricFilter filter;
 
-        DeltaMetricSupplier(MetricsRegistry registry, MetricPredicate predicate) {
+        DeltaMetricSupplier(MetricRegistry registry, MetricFilter filter) {
             this.registry = registry;
-            this.predicate = predicate;
+            this.filter = filter;
         }
 
         public Map<String, Metric> getMetrics() {
             final Map<String, Metric> map = new HashMap<String, Metric>();
-            for (Map.Entry<String, SortedMap<MetricName, Metric>> entry : registry.groupedMetrics(predicate).entrySet()) {
-                for (Map.Entry<MetricName, Metric> metricEntry : entry.getValue().entrySet()) {
-                    final String name = getStringName(metricEntry.getKey());
-                    map.put(name, metricEntry.getValue());
-                }
+            for (Map.Entry<String, Metric> entry : registry.getMetrics().entrySet()) {
+                // todo: ensure the name here is what we expect
+                final String name = entry.getKey();
+                map.put(name, entry.getValue());
             }
             return map;
-        }
-    }
-
-    @Override
-    public void run() {
-        // accumulate all the metrics in the batch, then post it allowing the LibratoBatch class to break up the work
-        MetricsLibratoBatch batch = new MetricsLibratoBatch(
-                LibratoBatch.DEFAULT_BATCH_SIZE,
-                sanitizer,
-                timeout,
-                timeoutUnit,
-                expansionConfig,
-                httpPoster,
-                prefix,
-                prefixDelimiter,
-                deltaTracker);
-        if (reportVmMetrics) {
-            reportVmMetrics(batch);
-        }
-        reportRegularMetrics(batch);
-        try {
-            final long epoch = TimeUnit.MILLISECONDS.toSeconds(this.clock.time());
-            batch.post(source, epoch);
-        } catch (Exception e) {
-            LOG.error("Librato post failed: ", e);
         }
     }
 
@@ -127,56 +90,50 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     @Override
     public void start(long period, TimeUnit unit) {
         LOG.debug("Reporter starting at fixed rate of every {} {}", period, unit);
-        executor.scheduleAtFixedRate(this, period, period, unit);
+        super.start(period, unit);
     }
 
-    protected void reportVmMetrics(MetricsLibratoBatch batch) {
-        LibratoUtil.addVmMetricsToBatch(vm, batch);
-    }
+    @Override
+    public void report(SortedMap<String, Gauge> gauges,
+                       SortedMap<String, Counter> counters,
+                       SortedMap<String, Histogram> histograms,
+                       SortedMap<String, Meter> meters,
+                       SortedMap<String, Timer> timers) {
+        final long epoch = TimeUnit.MILLISECONDS.toSeconds(clock.getTime());
+        final MetricsLibratoBatch batch = new MetricsLibratoBatch(
+                LibratoBatch.DEFAULT_BATCH_SIZE,
+                sanitizer,
+                timeout,
+                timeoutUnit,
+                expansionConfig,
+                httpPoster,
+                prefix,
+                prefixDelimiter,
+                deltaTracker);
 
-    protected void reportRegularMetrics(MetricsLibratoBatch batch) {
-        final SortedMap<String, SortedMap<MetricName, Metric>> metrics = getMetricsRegistry().groupedMetrics(predicate);
-        LOG.debug("Preparing batch of {} top level metrics", metrics.size());
-        for (Map.Entry<String, SortedMap<MetricName, Metric>> entry : metrics.entrySet()) {
-            for (Map.Entry<MetricName, Metric> subEntry : entry.getValue().entrySet()) {
-                final Metric metric = subEntry.getValue();
-                if (metric != null) {
-                    try {
-                        metric.processWith(this, subEntry.getKey(), batch);
-                    } catch (Exception e) {
-                        LOG.error("Error processing regular metrics:", e);
-                    }
-                }
-            }
+        for (Map.Entry<String, Gauge> entry : gauges.entrySet()) {
+            batch.addGauge(entry.getKey(), entry.getValue());
         }
-    }
-
-    public void processGauge(MetricName name, Gauge<?> gauge, MetricsLibratoBatch batch) throws Exception {
-        batch.addGauge(getStringName(name), gauge);
-    }
-
-    public void processCounter(MetricName name, Counter counter, MetricsLibratoBatch batch) throws Exception {
-        batch.addCounter(getStringName(name), counter);
-    }
-
-    public void processHistogram(MetricName name, Histogram histogram, MetricsLibratoBatch batch) throws Exception {
-        batch.addHistogram(getStringName(name), histogram);
-    }
-
-    public void processMeter(MetricName name, Metered meter, MetricsLibratoBatch batch) throws Exception {
-        batch.addMetered(getStringName(name), meter);
-    }
-
-    public void processTimer(MetricName name, Timer timer, MetricsLibratoBatch batch) throws Exception {
-        batch.addTimer(getStringName(name), timer);
-    }
-
-    private String getStringName(MetricName fullName) {
-        return sanitizer.apply(LibratoUtil.nameToString(fullName));
+        for (Map.Entry<String, Counter> entry : counters.entrySet()) {
+            batch.addCounterMeasurement(entry.getKey(), entry.getValue().getCount());
+        }
+        for (Map.Entry<String, Histogram> entry : histograms.entrySet()) {
+            batch.addSampling(entry.getKey(), entry.getValue());
+        }
+        for (Map.Entry<String, Meter> entry : meters.entrySet()) {
+            batch.addMeter(entry.getKey(), entry.getValue());
+        }
+        for (Map.Entry<String, Timer> entry : timers.entrySet()) {
+            final String timerName = entry.getKey();
+            final Timer timer = entry.getValue();
+            batch.addMeter(timerName, timer);
+            batch.addSampling(timerName, timer);
+        }
+        batch.post(source, epoch);
     }
 
     /**
-     * a builder for the LibratoReporter class that requires things that cannot be inferred and uses
+     * A builder for the LibratoReporter class that requires things that cannot be inferred and uses
      * sane default values for everything else.
      */
     public static class Builder {
@@ -184,31 +141,57 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         private Sanitizer sanitizer = Sanitizer.NO_OP;
         private long timeout = 5;
         private TimeUnit timeoutUnit = TimeUnit.SECONDS;
+        private TimeUnit rateUnit = TimeUnit.SECONDS;
+        private TimeUnit durationUnit = TimeUnit.MILLISECONDS;
         private String name = "librato-reporter";
-        private MetricsRegistry registry = Metrics.defaultRegistry();
-        private MetricPredicate predicate = MetricPredicate.ALL;
+        private final MetricRegistry registry;
+        private MetricFilter filter = MetricFilter.ALL;
         private Clock clock = Clock.defaultClock();
-        private VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
-        private boolean reportVmMetrics = true;
         private MetricExpansionConfig expansionConfig = MetricExpansionConfig.ALL;
         private HttpPoster httpPoster;
         private String prefix;
         private String prefixDelimiter = ".";
 
-        public Builder(String username, String token, String source) {
-            this.httpPoster = NingHttpPoster.newPoster(username, token);
+        public Builder(MetricRegistry registry, String username, String token, String source) {
+            this.registry = registry;
             this.source = source;
+            this.httpPoster = NingHttpPoster.newPoster(username, token);
         }
 
         /**
-         * Sets the character that will follow the prefix. Defaults to ".".
+         * Sets the timeout for POSTs to Librato
          *
-         * @param delimiter the delimiter
+         * @param timeout the timeout
          * @return itself
          */
         @SuppressWarnings("unused")
-        public Builder setPrefixDelimiter(String delimiter) {
-            this.prefixDelimiter = delimiter;
+        public Builder setTimeout(long timeout) {
+            this.timeout = timeout;
+            return this;
+        }
+
+        /**
+         * Sets the timeout time unit for POSTs to Librato
+         *
+         * @param timeoutUnit the timeout unit
+         * @return itself
+         */
+        @SuppressWarnings("unused")
+        public Builder setTimeoutUnit(TimeUnit timeoutUnit) {
+            this.timeoutUnit = timeoutUnit;
+            return this;
+        }
+
+        /**
+         * Sets the delimiter which will separate the prefix from the metric name. Defaults
+         * to "."
+         *
+         * @param prefixDelimiter the delimiter
+         * @return itself
+         */
+        @SuppressWarnings("unused")
+        public Builder setPrefixDelimiter(String prefixDelimiter) {
+            this.prefixDelimiter = prefixDelimiter;
             return this;
         }
 
@@ -225,14 +208,40 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         }
 
         /**
-         * Sets the instance that will perform the HTTP posting
+         * Sets the {@link HttpPoster} which will send the payload to Librato
          *
-         * @param httpPoster the poster
+         * @param poster the HttpPoster
          * @return itself
          */
         @SuppressWarnings("unused")
-        public Builder setHttpPoster(HttpPoster httpPoster) {
-            this.httpPoster = httpPoster;
+        public Builder setHttpPoster(HttpPoster poster) {
+            this.httpPoster = poster;
+            return this;
+        }
+
+        /**
+         * Sets the time unit to which rates will be converted by the reporter.  The default
+         * value is TimeUnit.SECONDS
+         *
+         * @param rateUnit the rate
+         * @return itself
+         */
+        @SuppressWarnings("unused")
+        public Builder setRateUnit(TimeUnit rateUnit) {
+            this.rateUnit = rateUnit;
+            return this;
+        }
+
+        /**
+         * Sets the time unit to which durations will be converted by the reporter. The default
+         * value is TimeUnit.MILLISECONDS
+         *
+         * @param durationUnit the time unit
+         * @return itself
+         */
+        @SuppressWarnings("unused")
+        public Builder setDurationUnit(TimeUnit durationUnit) {
+            this.durationUnit = durationUnit;
             return this;
         }
 
@@ -278,26 +287,14 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         }
 
         /**
-         * override default MetricsRegistry
-         *
-         * @param registry registry to be used
-         * @return itself
-         */
-        @SuppressWarnings("unused")
-        public Builder setRegistry(MetricsRegistry registry) {
-            this.registry = registry;
-            return this;
-        }
-
-        /**
          * Filter the metrics that this particular reporter publishes
          *
-         * @param predicate the predicate by which the metrics are to be filtered
+         * @param filter the {@link MetricFilter}
          * @return itself
          */
         @SuppressWarnings("unused")
-        public Builder setPredicate(MetricPredicate predicate) {
-            this.predicate = predicate;
+        public Builder setFilter(MetricFilter filter) {
+            this.filter = filter;
             return this;
         }
 
@@ -314,29 +311,6 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         }
 
         /**
-         * use a custom instance of VirtualMachineMetrics
-         *
-         * @param vm the instance to use
-         * @return itself
-         */
-        @SuppressWarnings("unused")
-        public Builder setVm(VirtualMachineMetrics vm) {
-            this.vm = vm;
-            return this;
-        }
-
-        /**
-         * turn on/off reporting of VM internal metrics (if, for example, you already get those elsewhere)
-         *
-         * @param reportVmMetrics true (report) or false (don't report)
-         * @return itself
-         */
-        public Builder setReportVmMetrics(boolean reportVmMetrics) {
-            this.reportVmMetrics = reportVmMetrics;
-            return this;
-        }
-
-        /**
          * Enables control over how the reporter generates 'expanded' metrics from meters and histograms,
          * such as percentiles and rates.
          *
@@ -344,6 +318,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
          * @return itself
          * @see {@link ExpandedMetric}
          */
+        @SuppressWarnings("unused")
         public Builder setExpansionConfig(MetricExpansionConfig expansionConfig) {
             this.expansionConfig = expansionConfig;
             return this;
@@ -356,16 +331,16 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
          */
         public LibratoReporter build() {
             return new LibratoReporter(
+                    registry,
                     name,
+                    filter,
+                    rateUnit,
+                    durationUnit,
                     sanitizer,
                     source,
                     timeout,
                     timeoutUnit,
-                    registry,
-                    predicate,
                     clock,
-                    vm,
-                    reportVmMetrics,
                     expansionConfig,
                     httpPoster,
                     prefix,
@@ -376,8 +351,8 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     /**
      * convenience method for creating a Builder
      */
-    public static Builder builder(String username, String token, String source) {
-        return new Builder(username, token, source);
+    public static Builder builder(MetricRegistry metricRegistry, String username, String token, String source) {
+        return new Builder(metricRegistry, username, token, source);
     }
 
     public static enum ExpandedMetric {

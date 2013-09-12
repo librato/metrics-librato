@@ -1,8 +1,8 @@
 package com.librato.metrics;
 
-import com.yammer.metrics.core.Histogram;
-import com.yammer.metrics.core.Metered;
-import com.yammer.metrics.core.Metric;
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Metered;
+import com.codahale.metrics.Metric;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -35,10 +35,10 @@ public class DeltaTracker {
             final String name = entry.getKey();
             final Metric metric = entry.getValue();
             if (metric instanceof Metered) {
-                lookup.put(name, ((Metered) metric).count());
+                lookup.put(name, ((Metered) metric).getCount());
             }
             if (metric instanceof Histogram) {
-                lookup.put(name, ((Histogram) metric).count());
+                lookup.put(name, ((Histogram) metric).getCount());
             }
         }
     }

@@ -1,8 +1,7 @@
 package com.librato.metrics;
 
+import com.codahale.metrics.*;
 import com.librato.metrics.LibratoReporter.MetricExpansionConfig;
-import com.yammer.metrics.Metrics;
-import com.yammer.metrics.core.*;
 
 import java.io.File;
 import java.util.ArrayList;
@@ -10,19 +9,18 @@ import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.*;
 
+import static com.codahale.metrics.MetricRegistry.name;
+
 
 /**
  * copied from the ExampleRunner in metrics-core
  */
 public class DummyApp {
     public static class DirectoryLister {
-        private final MetricsRegistry registry = Metrics.defaultRegistry();
-        private final Counter counter = registry.newCounter(getClass(), "directories");
-        private final Meter meter = registry.newMeter(getClass(), "files", "files", TimeUnit.SECONDS);
-        private final Timer timer = registry.newTimer(getClass(),
-                "directory-listing",
-                TimeUnit.MILLISECONDS,
-                TimeUnit.SECONDS);
+        private final MetricRegistry registry = new MetricRegistry();
+        private final Counter counter = registry.counter(name(getClass(), "directories"));
+        private final Meter meter = registry.meter(name(getClass(), "files"));
+        private final Timer timer = registry.timer(name(getClass(), "directory-listing"));
         private final File directory;
 
         public DirectoryLister(File directory) {
@@ -54,9 +52,9 @@ public class DummyApp {
     private static final int WORKER_COUNT = 10;
     private static final BlockingQueue<File> JOBS = new LinkedBlockingQueue<File>();
     private static final ExecutorService POOL = Executors.newFixedThreadPool(WORKER_COUNT);
-    private static final MetricsRegistry REGISTRY = Metrics.defaultRegistry();
-    private static final Counter QUEUE_DEPTH = REGISTRY.newCounter(DummyApp.class, "queue-depth");
-    private static final Histogram DIRECTORY_SIZE = REGISTRY.newHistogram(DummyApp.class, "directory-size", false);
+    private static final MetricRegistry REGISTRY = new MetricRegistry();
+    private static final Counter QUEUE_DEPTH = REGISTRY.counter(name(DummyApp.class, "queue-depth"));
+    private static final Histogram DIRECTORY_SIZE = REGISTRY.histogram(name(DummyApp.class, "directory-size"));
 
     public static class Job implements Runnable {
         public void run() {
@@ -79,9 +77,11 @@ public class DummyApp {
 
 
     public static void main(String[] args) throws Exception {
-        LibratoReporter.enable(LibratoReporter.builder("", "", "testing")
-                                              .setReportVmMetrics(false)
-                                              .setExpansionConfig(MetricExpansionConfig.ALL), 10, TimeUnit.SECONDS);
+        String username = System.getProperty("librato.user", "");
+        String token = System.getProperty("librato.token", "");
+        LibratoReporter.enable(
+                LibratoReporter.builder(REGISTRY, username, token, "testing")
+                        .setExpansionConfig(MetricExpansionConfig.ALL), 10, TimeUnit.SECONDS);
 
         System.err.println("Scanning all files on your hard drive...");
 

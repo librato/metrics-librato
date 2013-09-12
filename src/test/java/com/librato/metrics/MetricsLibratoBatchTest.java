@@ -1,7 +1,6 @@
 package com.librato.metrics;
 
-import com.yammer.metrics.core.*;
-import com.yammer.metrics.stats.Snapshot;
+import com.codahale.metrics.*;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.Before;
@@ -34,7 +33,7 @@ public class MetricsLibratoBatchTest {
         final MetricsLibratoBatch batch = newBatch(EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
         batch.addSampling("apples", new Sampling() {
             public Snapshot getSnapshot() {
-                return new Snapshot(new double[]{1.0});
+                return new Snapshot(new long[]{1});
             }
         });
         assertThat(batch, HasMeasurement.of("apples.median"));
@@ -45,10 +44,11 @@ public class MetricsLibratoBatchTest {
         assertThat(batch, HasMeasurement.of("apples.999th"));
     }
 
+
     @Test
     public void testMeteredWithAll() throws Exception {
         final MetricsLibratoBatch batch = newBatch(EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
-        batch.addMetered("oranges", new FakeMetered());
+        batch.addMeter("oranges", new FakeMetered());
         assertThat(batch, HasMeasurement.of("oranges.count"));
         assertThat(batch, HasMeasurement.of("oranges.meanRate"));
         assertThat(batch, HasMeasurement.of("oranges.1MinuteRate"));
@@ -61,7 +61,7 @@ public class MetricsLibratoBatchTest {
         final MetricsLibratoBatch batch = newBatch(EnumSet.of(MEDIAN, PCT_75));
         batch.addSampling("apples", new Sampling() {
             public Snapshot getSnapshot() {
-                return new Snapshot(new double[]{1.0});
+                return new Snapshot(new long[]{1});
             }
         });
         assertThat(batch, HasMeasurement.of("apples.median"));
@@ -75,7 +75,7 @@ public class MetricsLibratoBatchTest {
     @Test
     public void testMeteredWithSome() throws Exception {
         final MetricsLibratoBatch batch = newBatch(EnumSet.of(COUNT, RATE_MEAN));
-        batch.addMetered("oranges", new FakeMetered());
+        batch.addMeter("oranges", new FakeMetered());
         assertThat(batch, HasMeasurement.of("oranges.count"));
         assertThat(batch, HasMeasurement.of("oranges.meanRate"));
         assertThat(batch, not(HasMeasurement.of("oranges.1MinuteRate")));
@@ -88,7 +88,7 @@ public class MetricsLibratoBatchTest {
         final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.of(MEDIAN, PCT_75));
         batch.addSampling("apples", new Sampling() {
             public Snapshot getSnapshot() {
-                return new Snapshot(new double[]{1.0});
+                return new Snapshot(new long[]{1});
             }
         });
         assertThat(batch, HasMeasurement.of("myPrefix.apples.median"));
@@ -99,6 +99,27 @@ public class MetricsLibratoBatchTest {
         assertThat(batch, not(HasMeasurement.of("myPrefix.apples.999th")));
     }
 
+    @Test
+    public void testAddsPrefixForACounterMeasurement() throws Exception {
+        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        batch.addCounterMeasurement("apples", 1L);
+        batch.addCounterMeasurement("apples", 1L); // call it twice because of counter->gauge conversion
+        assertThat(batch, HasMeasurement.of("myPrefix.apples"));
+    }
+
+    @Test
+    public void testReportsCountersAsCounters() throws Exception {
+        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        batch.addCounterMeasurement("apples", 1L);
+        assertThat(batch, HasMeasurement.of("myPrefix.apples", 1L, CounterMeasurement.class));
+    }
+
+    @Test
+    public void testAddsAPrefixAndDelimiterForAGaugeMeasurement() throws Exception {
+        final MetricsLibratoBatch batch = newBatch("myPrefix", "," , EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        batch.addGaugeMeasurement("apples", 1);
+        assertThat(batch, HasMeasurement.of("myPrefix,apples"));
+    }
 
     @Test
     public void testAddsAPrefixForAGaugeMeasurement() throws Exception {
@@ -119,13 +140,6 @@ public class MetricsLibratoBatchTest {
         final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
         batch.addGauge("apples", new FakeGauge(1));
         assertThat(batch, HasMeasurement.of("myPrefix.apples"));
-    }
-
-    @Test
-    public void testAddsAPrefixAndDelimiterForAGaugeMeasurement() throws Exception {
-        final MetricsLibratoBatch batch = newBatch("myPrefix", "," , EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
-        batch.addGaugeMeasurement("apples", 1);
-        assertThat(batch, HasMeasurement.of("myPrefix,apples"));
     }
 
     @Test
@@ -153,7 +167,7 @@ public class MetricsLibratoBatchTest {
     public void testCounter() throws Exception {
         final MetricsLibratoBatch batch = newBatch();
         final Counter counter = mock(Counter.class);
-        when(counter.count()).thenReturn(1L);
+        when(counter.getCount()).thenReturn(1L);
         batch.addCounter("foo", counter);
         assertThat(batch, HasMeasurement.of("foo", 1L, SingleValueGaugeMeasurement.class));
     }
@@ -162,15 +176,16 @@ public class MetricsLibratoBatchTest {
     public void testHistogram() throws Exception {
         final MetricsLibratoBatch batch = newBatch();
         final Histogram histogram = mock(Histogram.class);
-        when(histogram.count()).thenReturn(1L).thenReturn(2L);
-        when(histogram.max()).thenReturn(10d);
-        when(histogram.min()).thenReturn(0d);
-        when(histogram.mean()).thenReturn(5d);
-        when(histogram.stdDev()).thenReturn(0d);
-        when(histogram.sum()).thenReturn(20d);
-
         final Snapshot snapshot = mock(Snapshot.class);
         when(histogram.getSnapshot()).thenReturn(snapshot);
+
+        when(histogram.getCount()).thenReturn(1L);
+        when(snapshot.size()).thenReturn(4);
+        when(snapshot.getMax()).thenReturn(10L);
+        when(snapshot.getMin()).thenReturn(0L);
+        when(snapshot.getMean()).thenReturn(5d);
+        when(snapshot.getStdDev()).thenReturn(0d);
+
         when(snapshot.getMedian()).thenReturn(50d);
         when(snapshot.get75thPercentile()).thenReturn(75d);
         when(snapshot.get95thPercentile()).thenReturn(95d);
@@ -194,7 +209,7 @@ public class MetricsLibratoBatchTest {
     public void testMeter() throws Exception {
         final MetricsLibratoBatch batch = newBatch();
         final FakeMetered meteredOne = new FakeMetered(1L, 2d, 1d, 5d, 15d);
-        batch.addMetered("foo", meteredOne);
+        batch.addMeter("foo", meteredOne);
 
         assertThat(batch, HasMeasurement.of("foo.count", 1L, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.meanRate", 2d, SingleValueGaugeMeasurement.class));
@@ -207,15 +222,16 @@ public class MetricsLibratoBatchTest {
     public void testTimer() throws Exception {
         final MetricsLibratoBatch batch = newBatch();
         final Timer timer = mock(Timer.class);
-        when(timer.count()).thenReturn(1L).thenReturn(2L);
-        when(timer.max()).thenReturn(10d);
-        when(timer.min()).thenReturn(0d);
-        when(timer.mean()).thenReturn(5d);
-        when(timer.stdDev()).thenReturn(0d);
-        when(timer.sum()).thenReturn(20d);
-
         final Snapshot snapshot = mock(Snapshot.class);
         when(timer.getSnapshot()).thenReturn(snapshot);
+
+        when(timer.getCount()).thenReturn(1L);
+        when(snapshot.size()).thenReturn(4);
+        when(snapshot.getMax()).thenReturn(10L);
+        when(snapshot.getMin()).thenReturn(0L);
+        when(snapshot.getMean()).thenReturn(5d);
+        when(snapshot.getStdDev()).thenReturn(0d);
+
         when(snapshot.getMedian()).thenReturn(50d);
         when(snapshot.get75thPercentile()).thenReturn(75d);
         when(snapshot.get95thPercentile()).thenReturn(95d);
@@ -223,14 +239,16 @@ public class MetricsLibratoBatchTest {
         when(snapshot.get99thPercentile()).thenReturn(99d);
         when(snapshot.get999thPercentile()).thenReturn(99.9);
 
-        when(timer.count()).thenReturn(1L).thenReturn(2L);
+        when(timer.getCount()).thenReturn(1L).thenReturn(2L);
 
-        when(timer.meanRate()).thenReturn(2d);
-        when(timer.oneMinuteRate()).thenReturn(1d);
-        when(timer.fiveMinuteRate()).thenReturn(5d);
-        when(timer.fifteenMinuteRate()).thenReturn(15d);
+        when(timer.getMeanRate()).thenReturn(2d);
+        when(timer.getOneMinuteRate()).thenReturn(1d);
+        when(timer.getFiveMinuteRate()).thenReturn(5d);
+        when(timer.getFifteenMinuteRate()).thenReturn(15d);
 
         batch.addTimer("foo", timer);
+
+        // todo: should this be using the total count from the timer instead of the snapshot? probably.
 
         assertThat(batch, new HasMultiSampleGaugeMeasurement("foo", 4L, 20d, 10d, 0d));
         assertThat(batch, HasMeasurement.of("foo.count", 1L, SingleValueGaugeMeasurement.class));
@@ -260,7 +278,7 @@ public class MetricsLibratoBatchTest {
         });
         // the batch will be constructed with the deltaTracker just created
         final MetricsLibratoBatch batch = newBatch();
-        batch.addMetered("foo", new FakeMetered(6L, 2d, 1d, 5d, 15d)); // increment by five
+        batch.addMeter("foo", new FakeMetered(6L, 2d, 1d, 5d, 15d)); // increment by five
         assertThat(batch, HasMeasurement.of("foo.count", 5L, SingleValueGaugeMeasurement.class));
     }
 
@@ -293,10 +311,7 @@ public class MetricsLibratoBatchTest {
                         return false;
                     }
                     final Map<String,Number> map = multi.toMap();
-                    if (!map.get("count").equals(count)) {
-                        return false;
-                    }
-                    return true;
+                    return map.get("count").equals(count);
                 }
             }
             return false;
@@ -358,6 +373,10 @@ public class MetricsLibratoBatchTest {
 
     private MetricsLibratoBatch newBatch(Set<LibratoReporter.ExpandedMetric> metrics) {
         return newBatch(null, ".", metrics);
+    }
+
+    private MetricsLibratoBatch newBatch(String prefix, Set<LibratoReporter.ExpandedMetric> metrics) {
+        return newBatch(prefix, ".", metrics);
     }
 
     private MetricsLibratoBatch newBatch(String prefix, String prefixDelimiter, Set<LibratoReporter.ExpandedMetric> metrics) {
