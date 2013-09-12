@@ -20,7 +20,7 @@ public class MetricsLibratoBatch extends LibratoBatch {
     private final MetricExpansionConfig expansionConfig;
     private final String prefix;
     private final String prefixDelimiter;
-    private final CounterGaugeConverter counterConverter;
+    private final DeltaTracker deltaTracker;
 
     /**
      * a string used to identify the library
@@ -43,12 +43,13 @@ public class MetricsLibratoBatch extends LibratoBatch {
                                MetricExpansionConfig expansionConfig,
                                HttpPoster httpPoster,
                                String prefix,
-                               String delimiter, CounterGaugeConverter counterConverter) {
+                               String delimiter,
+                               DeltaTracker deltaTracker) {
         super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER, httpPoster);
         this.expansionConfig = Preconditions.checkNotNull(expansionConfig);
         this.prefix = LibratoUtil.checkPrefix(prefix);
         this.prefixDelimiter = delimiter;
-        this.counterConverter = counterConverter;
+        this.deltaTracker = deltaTracker;
     }
 
     public void post(String source, long epoch) {
@@ -83,32 +84,25 @@ public class MetricsLibratoBatch extends LibratoBatch {
     }
 
     public void addHistogram(String name, Histogram histogram) {
-        final Long countDelta = counterConverter.getGaugeValue(addPrefix(name), histogram.count());
-        if (countDelta != null) {
-            maybeAdd(COUNT, name, countDelta);
-            addSummarizable(name, histogram);
-            addSampling(name, histogram);
-        }
+        final Long countDelta = deltaTracker.getDelta(name, histogram.count());
+        maybeAdd(COUNT, name, countDelta);
+        addSummarizable(name, histogram);
+        addSampling(name, histogram);
     }
 
-    public boolean addMetered(String name, Metered meter) {
-        final Long deltaCount = counterConverter.getGaugeValue(addPrefix(name), meter.count());
-        if (deltaCount != null) {
-            maybeAdd(COUNT, name, deltaCount);
-            maybeAdd(RATE_MEAN, name, meter.meanRate());
-            maybeAdd(RATE_1_MINUTE, name, meter.oneMinuteRate());
-            maybeAdd(RATE_5_MINUTE, name, meter.fiveMinuteRate());
-            maybeAdd(RATE_15_MINUTE, name, meter.fifteenMinuteRate());
-            return true;
-        }
-        return false;
+    public void addMetered(String name, Metered meter) {
+        final Long deltaCount = deltaTracker.getDelta(name, meter.count());
+        maybeAdd(COUNT, name, deltaCount);
+        maybeAdd(RATE_MEAN, name, meter.meanRate());
+        maybeAdd(RATE_1_MINUTE, name, meter.oneMinuteRate());
+        maybeAdd(RATE_5_MINUTE, name, meter.fiveMinuteRate());
+        maybeAdd(RATE_15_MINUTE, name, meter.fifteenMinuteRate());
     }
 
     public void addTimer(String name, Timer timer) {
-        if (addMetered(name, timer)) {
-            addSummarizable(name, timer);
-            addSampling(name, timer);
-        }
+        addMetered(name, timer);
+        addSummarizable(name, timer);
+        addSampling(name, timer);
     }
 
     private void addSummarizable(String name, Summarizable summarizable) {

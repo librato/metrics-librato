@@ -1,9 +1,6 @@
 package com.librato.metrics;
 
-import com.yammer.metrics.core.Counter;
-import com.yammer.metrics.core.Histogram;
-import com.yammer.metrics.core.Sampling;
-import com.yammer.metrics.core.Timer;
+import com.yammer.metrics.core.*;
 import com.yammer.metrics.stats.Snapshot;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
@@ -11,6 +8,7 @@ import org.junit.Before;
 import org.junit.Test;
 
 import java.util.EnumSet;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -23,12 +21,12 @@ import static org.mockito.Mockito.when;
 
 public class MetricsLibratoBatchTest {
     HttpPoster httpPoster;
-    CounterGaugeConverter counterConverter;
+    DeltaTracker deltaTracker;
 
     @Before
     public void setUp() throws Exception {
         httpPoster = mock(HttpPoster.class);
-        counterConverter = new CounterGaugeConverter();
+        deltaTracker = new DeltaTracker();
     }
 
     @Test
@@ -248,6 +246,24 @@ public class MetricsLibratoBatchTest {
         assertThat(batch, HasMeasurement.of("foo.15MinuteRate", 15d, SingleValueGaugeMeasurement.class));
     }
 
+    @Test
+    public void testSetsInitialValuesInTheDeltaTracker() throws Exception {
+        final FakeMetered metered = new FakeMetered(1L, 2d, 1d, 5d, 15d); // a count of one
+
+        // we'll test the simple case of a meter and that when the tracker is created it initializes the values
+        deltaTracker = new DeltaTracker(new DeltaTracker.MetricSupplier() {
+            public Map<String, Metric> getMetrics() {
+                final Map<String, Metric> map = new HashMap<String, Metric>();
+                map.put("foo", metered);
+                return map;
+            }
+        });
+        // the batch will be constructed with the deltaTracker just created
+        final MetricsLibratoBatch batch = newBatch();
+        batch.addMetered("foo", new FakeMetered(6L, 2d, 1d, 5d, 15d)); // increment by five
+        assertThat(batch, HasMeasurement.of("foo.count", 5L, SingleValueGaugeMeasurement.class));
+    }
+
     @Test(expected = IllegalArgumentException.class)
     public void testDoesNotAcceptEmptyStringPrefix() throws Exception {
         newBatch("", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
@@ -357,6 +373,6 @@ public class MetricsLibratoBatchTest {
                 httpPoster,
                 prefix,
                 prefixDelimiter,
-                counterConverter);
+                deltaTracker);
     }
 }
