@@ -15,8 +15,8 @@ public class CounterGaugeConverterTest {
     }
 
     @Test
-    public void testFirstValueAlwaysNull() throws Exception {
-        assertThat(converter.getGaugeValue("foo", 5), is(nullValue()));
+    public void testAssumesInitialValueOfZero() throws Exception {
+        assertThat(converter.getGaugeValue("foo", 5), is(5L));
     }
 
     @Test
@@ -36,9 +36,9 @@ public class CounterGaugeConverterTest {
 
     @Test
     public void testDoesNotReportNegativeIncrements() throws Exception {
-        converter.getGaugeValue("foo", 1);
-        assertThat(converter.getGaugeValue("foo", 0), is(nullValue()));
-        assertThat(converter.getGaugeValue("foo", 1), equalTo(1L));
+        assertThat(converter.getGaugeValue("foo", 1), is(1L));
+        assertThat(converter.getGaugeValue("foo", 0), is(0L));
+        assertThat(converter.getGaugeValue("foo", 5), equalTo(5L));
     }
 
     @Test

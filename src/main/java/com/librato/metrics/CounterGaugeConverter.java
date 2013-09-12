@@ -17,22 +17,21 @@ public class CounterGaugeConverter {
 
     /**
      * Gets the converted gauge value for the specified count.  If this is a new count
-     * that has not been seen before, null will be returned to specify that the difference
-     * is not yet known and should not be used.
+     * that has not been seen before, zero will be assumed to be the initial value.
      *
      * @param name  the name of the counter
      * @param count the counter value
-     * @return the gauge value, null if the counter has not been seen before
+     * @return the delta
      */
     public Long getGaugeValue(String name, long count) {
-        final Long previous = lookup.put(name, count);
+        Long previous = lookup.put(name, count);
         if (previous == null) {
             // this is the first time we have seen this count
-            return null;
+            previous = 0L;
         }
         if (count < previous) {
             LOG.error("Saw a non-monotonically inreasing value for counter {}", name);
-            return null;
+            return 0L;
         }
         return count - previous;
     }

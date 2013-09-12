@@ -16,7 +16,6 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static com.librato.metrics.LibratoReporter.ExpandedMetric.*;
-import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
@@ -52,8 +51,6 @@ public class MetricsLibratoBatchTest {
     public void testMeteredWithAll() throws Exception {
         final MetricsLibratoBatch batch = newBatch(EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
         batch.addMetered("oranges", new FakeMetered());
-        assertThat(batch.measurements.size(), is(0));
-        batch.addMetered("oranges", new FakeMetered());
         assertThat(batch, HasMeasurement.of("oranges.count"));
         assertThat(batch, HasMeasurement.of("oranges.meanRate"));
         assertThat(batch, HasMeasurement.of("oranges.1MinuteRate"));
@@ -80,8 +77,6 @@ public class MetricsLibratoBatchTest {
     @Test
     public void testMeteredWithSome() throws Exception {
         final MetricsLibratoBatch batch = newBatch(EnumSet.of(COUNT, RATE_MEAN));
-        batch.addMetered("oranges", new FakeMetered());
-        assertThat(batch.measurements.size(), is(0));
         batch.addMetered("oranges", new FakeMetered());
         assertThat(batch, HasMeasurement.of("oranges.count"));
         assertThat(batch, HasMeasurement.of("oranges.meanRate"));
@@ -186,11 +181,8 @@ public class MetricsLibratoBatchTest {
         when(snapshot.get999thPercentile()).thenReturn(99.9);
 
         batch.addHistogram("foo", histogram);
-        assertThat(batch.measurements.size(), is(0));
-        batch.addHistogram("foo", histogram);
 
         assertThat(batch, new HasMultiSampleGaugeMeasurement("foo", 4L, 20d, 10d, 0d));
-
         assertThat(batch, HasMeasurement.of("foo.count", 1L, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.median", 50d, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.75th", 75d, SingleValueGaugeMeasurement.class));
@@ -204,11 +196,7 @@ public class MetricsLibratoBatchTest {
     public void testMeter() throws Exception {
         final MetricsLibratoBatch batch = newBatch();
         final FakeMetered meteredOne = new FakeMetered(1L, 2d, 1d, 5d, 15d);
-        final FakeMetered meteredTwo = new FakeMetered(2L, 2d, 1d, 5d, 15d);
-
         batch.addMetered("foo", meteredOne);
-        assertThat(batch.measurements.size(), is(0));
-        batch.addMetered("foo", meteredTwo);
 
         assertThat(batch, HasMeasurement.of("foo.count", 1L, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.meanRate", 2d, SingleValueGaugeMeasurement.class));
@@ -245,20 +233,15 @@ public class MetricsLibratoBatchTest {
         when(timer.fifteenMinuteRate()).thenReturn(15d);
 
         batch.addTimer("foo", timer);
-        assertThat(batch.measurements.size(), is(0));
-        batch.addTimer("foo", timer);
 
         assertThat(batch, new HasMultiSampleGaugeMeasurement("foo", 4L, 20d, 10d, 0d));
-
         assertThat(batch, HasMeasurement.of("foo.count", 1L, SingleValueGaugeMeasurement.class));
-
         assertThat(batch, HasMeasurement.of("foo.median", 50d, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.75th", 75d, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.95th", 95d, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.98th", 98d, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.99th", 99d, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.999th", 99.9d, SingleValueGaugeMeasurement.class));
-
         assertThat(batch, HasMeasurement.of("foo.meanRate", 2d, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.1MinuteRate", 1d, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.5MinuteRate", 5d, SingleValueGaugeMeasurement.class));
