@@ -1,20 +1,26 @@
 package com.librato.metrics;
 
-import com.yammer.metrics.core.*;
+import com.yammer.metrics.core.Counter;
+import com.yammer.metrics.core.Histogram;
+import com.yammer.metrics.core.Sampling;
+import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.stats.Snapshot;
 import org.hamcrest.BaseMatcher;
 import org.hamcrest.Description;
 import org.junit.Before;
 import org.junit.Test;
-import org.mockito.Mockito;
 
 import java.util.EnumSet;
+import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static com.librato.metrics.LibratoReporter.ExpandedMetric.*;
+import static org.hamcrest.CoreMatchers.is;
 import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class MetricsLibratoBatchTest {
     HttpPoster httpPoster;
@@ -22,7 +28,7 @@ public class MetricsLibratoBatchTest {
 
     @Before
     public void setUp() throws Exception {
-        httpPoster = Mockito.mock(HttpPoster.class);
+        httpPoster = mock(HttpPoster.class);
         counterConverter = new CounterGaugeConverter();
     }
 
@@ -45,7 +51,9 @@ public class MetricsLibratoBatchTest {
     @Test
     public void testMeteredWithAll() throws Exception {
         final MetricsLibratoBatch batch = newBatch(EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
-        batch.addMetered("oranges", new DumbMetered());
+        batch.addMetered("oranges", new FakeMetered());
+        assertThat(batch.measurements.size(), is(0));
+        batch.addMetered("oranges", new FakeMetered());
         assertThat(batch, HasMeasurement.of("oranges.count"));
         assertThat(batch, HasMeasurement.of("oranges.meanRate"));
         assertThat(batch, HasMeasurement.of("oranges.1MinuteRate"));
@@ -72,7 +80,9 @@ public class MetricsLibratoBatchTest {
     @Test
     public void testMeteredWithSome() throws Exception {
         final MetricsLibratoBatch batch = newBatch(EnumSet.of(COUNT, RATE_MEAN));
-        batch.addMetered("oranges", new DumbMetered());
+        batch.addMetered("oranges", new FakeMetered());
+        assertThat(batch.measurements.size(), is(0));
+        batch.addMetered("oranges", new FakeMetered());
         assertThat(batch, HasMeasurement.of("oranges.count"));
         assertThat(batch, HasMeasurement.of("oranges.meanRate"));
         assertThat(batch, not(HasMeasurement.of("oranges.1MinuteRate")));
@@ -108,14 +118,13 @@ public class MetricsLibratoBatchTest {
     public void testAddsAPrefixForACounterMeasurement() throws Exception {
         final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
         batch.addCounterMeasurement("apples", 1L);
-        batch.addCounterMeasurement("apples", 1L); // call it twice because of counter->gauge conversion
         assertThat(batch, HasMeasurement.of("myPrefix.apples"));
     }
 
     @Test
     public void testAddsAPrefixForAGauge() throws Exception {
         final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
-        batch.addGauge("apples", new SimpleGauge(1));
+        batch.addGauge("apples", new FakeGauge(1));
         assertThat(batch, HasMeasurement.of("myPrefix.apples"));
     }
 
@@ -129,37 +138,131 @@ public class MetricsLibratoBatchTest {
     @Test
     public void testDoesNotAddInfinityAsAGauge() throws Exception {
         final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
-        batch.addGauge("apples", new SimpleGauge(Double.POSITIVE_INFINITY));
+        batch.addGauge("apples", new FakeGauge(Double.POSITIVE_INFINITY));
         assertThat(batch, not(HasMeasurement.of("myPrefix.apples")));
     }
 
     @Test
     public void testDoesNotAddNaNAsAGauge() throws Exception {
         final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
-        batch.addGauge("apples", new SimpleGauge(Double.NaN));
+        batch.addGauge("apples", new FakeGauge(Double.NaN));
         assertThat(batch, not(HasMeasurement.of("myPrefix.apples")));
     }
 
     @Test
-    public void testReportsCountersAsGauges() throws Exception {
-        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
-        batch.addCounterMeasurement("apples", 1L);
-        assertThat(batch, not(HasMeasurement.of("myPrefix.apples")));
-        batch.addCounterMeasurement("apples", 2L);
-        assertThat(batch, HasMeasurement.of("myPrefix.apples", 1L, SingleValueGaugeMeasurement.class));
+    public void testGauge() throws Exception {
+        final MetricsLibratoBatch batch = newBatch();
+        batch.addGauge("foo", new FakeGauge(1L));
+        assertThat(batch, HasMeasurement.of("foo", 1L, SingleValueGaugeMeasurement.class));
     }
 
-    class SimpleGauge extends Gauge {
-        final Object value;
+    @Test
+    public void testCounter() throws Exception {
+        final MetricsLibratoBatch batch = newBatch();
+        final Counter counter = mock(Counter.class);
+        when(counter.count()).thenReturn(1L);
+        batch.addCounter("foo", counter);
+        assertThat(batch, HasMeasurement.of("foo", 1L, SingleValueGaugeMeasurement.class));
+    }
 
-        SimpleGauge(Object value) {
-            this.value = value;
-        }
+    @Test
+    public void testHistogram() throws Exception {
+        final MetricsLibratoBatch batch = newBatch();
+        final Histogram histogram = mock(Histogram.class);
+        when(histogram.count()).thenReturn(1L).thenReturn(2L);
+        when(histogram.max()).thenReturn(10d);
+        when(histogram.min()).thenReturn(0d);
+        when(histogram.mean()).thenReturn(5d);
+        when(histogram.stdDev()).thenReturn(0d);
+        when(histogram.sum()).thenReturn(20d);
 
-        @Override
-        public Object value() {
-            return value;
-        }
+        final Snapshot snapshot = mock(Snapshot.class);
+        when(histogram.getSnapshot()).thenReturn(snapshot);
+        when(snapshot.getMedian()).thenReturn(50d);
+        when(snapshot.get75thPercentile()).thenReturn(75d);
+        when(snapshot.get95thPercentile()).thenReturn(95d);
+        when(snapshot.get98thPercentile()).thenReturn(98d);
+        when(snapshot.get99thPercentile()).thenReturn(99d);
+        when(snapshot.get999thPercentile()).thenReturn(99.9);
+
+        batch.addHistogram("foo", histogram);
+        assertThat(batch.measurements.size(), is(0));
+        batch.addHistogram("foo", histogram);
+
+        assertThat(batch, new HasMultiSampleGaugeMeasurement("foo", 4L, 20d, 10d, 0d));
+
+        assertThat(batch, HasMeasurement.of("foo.count", 1L, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.median", 50d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.75th", 75d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.95th", 95d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.98th", 98d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.99th", 99d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.999th", 99.9d, SingleValueGaugeMeasurement.class));
+    }
+
+    @Test
+    public void testMeter() throws Exception {
+        final MetricsLibratoBatch batch = newBatch();
+        final FakeMetered meteredOne = new FakeMetered(1L, 2d, 1d, 5d, 15d);
+        final FakeMetered meteredTwo = new FakeMetered(2L, 2d, 1d, 5d, 15d);
+
+        batch.addMetered("foo", meteredOne);
+        assertThat(batch.measurements.size(), is(0));
+        batch.addMetered("foo", meteredTwo);
+
+        assertThat(batch, HasMeasurement.of("foo.count", 1L, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.meanRate", 2d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.1MinuteRate", 1d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.5MinuteRate", 5d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.15MinuteRate", 15d, SingleValueGaugeMeasurement.class));
+    }
+
+    @Test
+    public void testTimer() throws Exception {
+        final MetricsLibratoBatch batch = newBatch();
+        final Timer timer = mock(Timer.class);
+        when(timer.count()).thenReturn(1L).thenReturn(2L);
+        when(timer.max()).thenReturn(10d);
+        when(timer.min()).thenReturn(0d);
+        when(timer.mean()).thenReturn(5d);
+        when(timer.stdDev()).thenReturn(0d);
+        when(timer.sum()).thenReturn(20d);
+
+        final Snapshot snapshot = mock(Snapshot.class);
+        when(timer.getSnapshot()).thenReturn(snapshot);
+        when(snapshot.getMedian()).thenReturn(50d);
+        when(snapshot.get75thPercentile()).thenReturn(75d);
+        when(snapshot.get95thPercentile()).thenReturn(95d);
+        when(snapshot.get98thPercentile()).thenReturn(98d);
+        when(snapshot.get99thPercentile()).thenReturn(99d);
+        when(snapshot.get999thPercentile()).thenReturn(99.9);
+
+        when(timer.count()).thenReturn(1L).thenReturn(2L);
+
+        when(timer.meanRate()).thenReturn(2d);
+        when(timer.oneMinuteRate()).thenReturn(1d);
+        when(timer.fiveMinuteRate()).thenReturn(5d);
+        when(timer.fifteenMinuteRate()).thenReturn(15d);
+
+        batch.addTimer("foo", timer);
+        assertThat(batch.measurements.size(), is(0));
+        batch.addTimer("foo", timer);
+
+        assertThat(batch, new HasMultiSampleGaugeMeasurement("foo", 4L, 20d, 10d, 0d));
+
+        assertThat(batch, HasMeasurement.of("foo.count", 1L, SingleValueGaugeMeasurement.class));
+
+        assertThat(batch, HasMeasurement.of("foo.median", 50d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.75th", 75d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.95th", 95d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.98th", 98d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.99th", 99d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.999th", 99.9d, SingleValueGaugeMeasurement.class));
+
+        assertThat(batch, HasMeasurement.of("foo.meanRate", 2d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.1MinuteRate", 1d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.5MinuteRate", 5d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.15MinuteRate", 15d, SingleValueGaugeMeasurement.class));
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -167,36 +270,41 @@ public class MetricsLibratoBatchTest {
         newBatch("", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
     }
 
-    class DumbMetered implements Metered {
-        public TimeUnit rateUnit() {
-            return TimeUnit.DAYS;
+    static class HasMultiSampleGaugeMeasurement extends BaseMatcher<LibratoBatch> {
+        final String name;
+        final long count;
+        final Number sum;
+        final Number max;
+        final Number min;
+
+        HasMultiSampleGaugeMeasurement(String name, long count, Number sum, Number max, Number min) {
+            this.name = name;
+            this.count = count;
+            this.sum = sum;
+            this.max = max;
+            this.min = min;
         }
 
-        public String eventType() {
-            return "no event type";
+        public boolean matches(Object o) {
+            LibratoBatch batch = (LibratoBatch)o;
+            for (Measurement measurement : batch.measurements) {
+                if (measurement instanceof MultiSampleGaugeMeasurement) {
+                    MultiSampleGaugeMeasurement multi = (MultiSampleGaugeMeasurement) measurement;
+                    if (!multi.getName().equals(name)) {
+                        return false;
+                    }
+                    final Map<String,Number> map = multi.toMap();
+                    if (!map.get("count").equals(count)) {
+                        return false;
+                    }
+                    return true;
+                }
+            }
+            return false;
         }
 
-        public long count() {
-            return 0;
-        }
-
-        public double fifteenMinuteRate() {
-            return 0;
-        }
-
-        public double fiveMinuteRate() {
-            return 0;
-        }
-
-        public double meanRate() {
-            return 0;
-        }
-
-        public double oneMinuteRate() {
-            return 0;
-        }
-
-        public <T> void processWith(MetricProcessor<T> processor, MetricName name, T context) throws Exception {
+        public void describeTo(Description description) {
+            description.appendText("measurement with name " + name);
         }
     }
 
@@ -243,6 +351,10 @@ public class MetricsLibratoBatchTest {
 
     private MetricsLibratoBatch newBatch(String prefix, EnumSet<LibratoReporter.ExpandedMetric> metrics) {
         return newBatch(prefix, ".", metrics);
+    }
+
+    private MetricsLibratoBatch newBatch() {
+        return newBatch(null, ".", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
     }
 
     private MetricsLibratoBatch newBatch(Set<LibratoReporter.ExpandedMetric> metrics) {

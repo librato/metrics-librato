@@ -127,33 +127,28 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         }
     }
 
-    private String getStringName(MetricName fullName) {
-        return sanitizer.apply(LibratoUtil.nameToString(fullName));
+    public void processGauge(MetricName name, Gauge<?> gauge, MetricsLibratoBatch batch) throws Exception {
+        batch.addGauge(getStringName(name), gauge);
+    }
+
+    public void processCounter(MetricName name, Counter counter, MetricsLibratoBatch batch) throws Exception {
+        batch.addCounter(getStringName(name), counter);
+    }
+
+    public void processHistogram(MetricName name, Histogram histogram, MetricsLibratoBatch batch) throws Exception {
+        batch.addHistogram(getStringName(name), histogram);
     }
 
     public void processMeter(MetricName name, Metered meter, MetricsLibratoBatch batch) throws Exception {
         batch.addMetered(getStringName(name), meter);
     }
 
-    public void processCounter(MetricName name, Counter counter, MetricsLibratoBatch batch) throws Exception {
-        batch.addCounterMeasurement(getStringName(name), counter.count());
-    }
-
-    public void processHistogram(MetricName name, Histogram histogram, MetricsLibratoBatch batch) throws Exception {
-        String sanitizedName = getStringName(name);
-        batch.addSummarizable(sanitizedName, histogram);
-        batch.addSampling(sanitizedName, histogram);
-    }
-
     public void processTimer(MetricName name, Timer timer, MetricsLibratoBatch batch) throws Exception {
-        String sanitizedName = getStringName(name);
-        batch.addMetered(sanitizedName, timer);
-        batch.addSummarizable(sanitizedName, timer);
-        batch.addSampling(sanitizedName, timer);
+        batch.addTimer(getStringName(name), timer);
     }
 
-    public void processGauge(MetricName name, Gauge<?> gauge, MetricsLibratoBatch batch) throws Exception {
-        batch.addGauge(getStringName(name), gauge);
+    private String getStringName(MetricName fullName) {
+        return sanitizer.apply(LibratoUtil.nameToString(fullName));
     }
 
     /**
