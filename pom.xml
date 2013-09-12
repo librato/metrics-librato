@@ -9,7 +9,7 @@
     <groupId>com.librato.metrics</groupId>
     <artifactId>metrics-librato</artifactId>
     <name>Metrics Librato Support</name>
-    <version>3.0.1.RC1</version>
+    <version>3.0.1.RC2-SNAPSHOT</version>
     <description>The LibratoReporter class runs in the background, publishing metrics to the Librato Metrics API at the
         specified interval.
     </description>
@@ -25,7 +25,7 @@
         <url>https://github.com/librato/metrics-librato</url>
         <connection>scm:git:git@github.com:librato/metrics-librato.git</connection>
         <developerConnection>scm:git:git@github.com:librato/metrics-librato.git</developerConnection>
-      <tag>metrics-librato-3.0.1.RC1</tag>
+      <tag>HEAD</tag>
   </scm>
     <developers>
         <developer>
