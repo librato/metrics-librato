@@ -195,9 +195,9 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         private String prefix;
         private String prefixDelimiter = ".";
 
-        public Builder(String username, String token, String source) {
-            this.httpPoster = NingHttpPoster.newPoster(username, token);
+        public Builder(String source, HttpPoster httpPoster) {
             this.source = source;
+            this.httpPoster = httpPoster;
         }
 
         /**
@@ -374,10 +374,16 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
     }
 
     /**
-     * convenience method for creating a Builder
+     * convenience method for creating a Builder that uses the Ning HTTP client
      */
     public static Builder builder(String username, String token, String source) {
-        return new Builder(username, token, source);
+        final String apiUrl = "https://metrics-api.librato.com/v1/metrics";
+        final NingHttpPoster httpPoster = NingHttpPoster.newPoster(username, token, apiUrl);
+        return builder(source, httpPoster);
+    }
+
+    public static Builder builder(String source, HttpPoster httpPoster) {
+        return new Builder(source, httpPoster);
     }
 
     public static enum ExpandedMetric {
