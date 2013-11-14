@@ -6,6 +6,7 @@ import org.hamcrest.Description;
 import org.junit.Before;
 import org.junit.Test;
 
+import javax.xml.datatype.Duration;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
@@ -35,7 +36,7 @@ public class MetricsLibratoBatchTest {
             public Snapshot getSnapshot() {
                 return new Snapshot(new long[]{1});
             }
-        });
+        }, false);
         assertThat(batch, HasMeasurement.of("apples.median"));
         assertThat(batch, HasMeasurement.of("apples.75th"));
         assertThat(batch, HasMeasurement.of("apples.95th"));
@@ -63,7 +64,7 @@ public class MetricsLibratoBatchTest {
             public Snapshot getSnapshot() {
                 return new Snapshot(new long[]{1});
             }
-        });
+        }, false);
         assertThat(batch, HasMeasurement.of("apples.median"));
         assertThat(batch, HasMeasurement.of("apples.75th"));
         assertThat(batch, not(HasMeasurement.of("apples.95th")));
@@ -90,7 +91,7 @@ public class MetricsLibratoBatchTest {
             public Snapshot getSnapshot() {
                 return new Snapshot(new long[]{1});
             }
-        });
+        }, false);
         assertThat(batch, HasMeasurement.of("myPrefix.apples.median"));
         assertThat(batch, HasMeasurement.of("myPrefix.apples.75th"));
         assertThat(batch, not(HasMeasurement.of("myPrefix.apples.95th")));
@@ -205,6 +206,8 @@ public class MetricsLibratoBatchTest {
         assertThat(batch, HasMeasurement.of("foo.999th", 99.9d, SingleValueGaugeMeasurement.class));
     }
 
+
+
     @Test
     public void testMeter() throws Exception {
         final MetricsLibratoBatch batch = newBatch();
@@ -219,8 +222,29 @@ public class MetricsLibratoBatchTest {
     }
 
     @Test
+    public void testMeterWithRateConversion() throws Exception {
+        final MetricsLibratoBatch batch = this.newBatch(new MetricsLibratoBatch.RateConverter() {
+            public double convertMetricRate(double rate) {
+                return rate * 2;
+            }
+        });
+        final FakeMetered meteredOne = new FakeMetered(1L, 2d, 1d, 5d, 15d);
+        batch.addMeter("foo", meteredOne);
+
+        assertThat(batch, HasMeasurement.of("foo.count", 1L, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.meanRate", 4d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.1MinuteRate", 2d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.5MinuteRate", 10d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.15MinuteRate", 30d, SingleValueGaugeMeasurement.class));
+    }
+
+    @Test
     public void testTimer() throws Exception {
-        final MetricsLibratoBatch batch = newBatch();
+        final MetricsLibratoBatch batch = newBatch(new MetricsLibratoBatch.DurationConverter() {
+            public double convertMetricDuration(double duration) {
+                return duration * 2;
+            }
+        });
         final Timer timer = mock(Timer.class);
         final Snapshot snapshot = mock(Snapshot.class);
         when(timer.getSnapshot()).thenReturn(snapshot);
@@ -252,12 +276,12 @@ public class MetricsLibratoBatchTest {
 
         assertThat(batch, new HasMultiSampleGaugeMeasurement("foo", 4L, 20d, 10d, 0d));
         assertThat(batch, HasMeasurement.of("foo.count", 1L, SingleValueGaugeMeasurement.class));
-        assertThat(batch, HasMeasurement.of("foo.median", 50d, SingleValueGaugeMeasurement.class));
-        assertThat(batch, HasMeasurement.of("foo.75th", 75d, SingleValueGaugeMeasurement.class));
-        assertThat(batch, HasMeasurement.of("foo.95th", 95d, SingleValueGaugeMeasurement.class));
-        assertThat(batch, HasMeasurement.of("foo.98th", 98d, SingleValueGaugeMeasurement.class));
-        assertThat(batch, HasMeasurement.of("foo.99th", 99d, SingleValueGaugeMeasurement.class));
-        assertThat(batch, HasMeasurement.of("foo.999th", 99.9d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.median", 100d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.75th", 150d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.95th", 190d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.98th", 196d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.99th", 198d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.999th", 199.8d, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.meanRate", 2d, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.1MinuteRate", 1d, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.5MinuteRate", 5d, SingleValueGaugeMeasurement.class));
@@ -279,7 +303,7 @@ public class MetricsLibratoBatchTest {
         // the batch will be constructed with the deltaTracker just created
         final MetricsLibratoBatch batch = newBatch();
         batch.addMeter("foo", new FakeMetered(6L, 2d, 1d, 5d, 15d)); // increment by five
-        assertThat(batch, HasMeasurement.of("foo.count", 5L, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.count", 5l, SingleValueGaugeMeasurement.class));
     }
 
     @Test(expected = IllegalArgumentException.class)
@@ -371,6 +395,14 @@ public class MetricsLibratoBatchTest {
         return newBatch(null, ".", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
     }
 
+    private MetricsLibratoBatch newBatch(MetricsLibratoBatch.RateConverter rateConverter) {
+        return newBatch(null, ".", EnumSet.allOf(LibratoReporter.ExpandedMetric.class), rateConverter, identityDurationConverter);
+    }
+
+    private MetricsLibratoBatch newBatch(MetricsLibratoBatch.DurationConverter durationConverter) {
+        return newBatch(null, ".", EnumSet.allOf(LibratoReporter.ExpandedMetric.class), identityRateConverter, durationConverter);
+    }
+
     private MetricsLibratoBatch newBatch(Set<LibratoReporter.ExpandedMetric> metrics) {
         return newBatch(null, ".", metrics);
     }
@@ -379,7 +411,27 @@ public class MetricsLibratoBatchTest {
         return newBatch(prefix, ".", metrics);
     }
 
+    static MetricsLibratoBatch.RateConverter identityRateConverter = new MetricsLibratoBatch.RateConverter() {
+        public double convertMetricRate(double rate) {
+            return rate;
+        }
+    };
+
+    static MetricsLibratoBatch.DurationConverter identityDurationConverter = new MetricsLibratoBatch.DurationConverter() {
+        public double convertMetricDuration(double duration) {
+            return duration;
+        }
+    };
+
     private MetricsLibratoBatch newBatch(String prefix, String prefixDelimiter, Set<LibratoReporter.ExpandedMetric> metrics) {
+        return newBatch(prefix, prefixDelimiter, metrics, identityRateConverter, identityDurationConverter);
+    }
+
+    private MetricsLibratoBatch newBatch(String prefix,
+                                         String prefixDelimiter,
+                                         Set<LibratoReporter.ExpandedMetric> metrics,
+                                         MetricsLibratoBatch.RateConverter rateConverter,
+                                         MetricsLibratoBatch.DurationConverter durationConverter) {
         final int postBatchSize = 100;
         final Sanitizer sanitizer = Sanitizer.NO_OP;
         final LibratoReporter.MetricExpansionConfig expansionConfig = new LibratoReporter.MetricExpansionConfig(EnumSet.copyOf(metrics));
@@ -392,6 +444,8 @@ public class MetricsLibratoBatchTest {
                 httpPoster,
                 prefix,
                 prefixDelimiter,
-                deltaTracker);
+                deltaTracker,
+                rateConverter,
+                durationConverter);
     }
 }

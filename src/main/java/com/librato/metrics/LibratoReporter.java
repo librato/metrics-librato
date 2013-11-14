@@ -11,7 +11,7 @@ import java.util.concurrent.TimeUnit;
 /**
  * A reporter for publishing metrics to <a href="http://metrics.librato.com/">Librato Metrics</a>
  */
-public class LibratoReporter extends ScheduledReporter {
+public class LibratoReporter extends ScheduledReporter implements MetricsLibratoBatch.RateConverter, MetricsLibratoBatch.DurationConverter {
     private static final Logger LOG = LoggerFactory.getLogger(LibratoReporter.class);
     private final DeltaTracker deltaTracker;
     private final String source;
@@ -56,6 +56,13 @@ public class LibratoReporter extends ScheduledReporter {
         this.deltaTracker = new DeltaTracker(new DeltaMetricSupplier(registry, filter));
     }
 
+    public double convertMetricDuration(double duration) {
+        return convertDuration(duration);
+    }
+
+    public double convertMetricRate(double rate) {
+        return convertRate(rate);
+    }
 
     /**
      * Used to supply metrics to the delta tracker on initialization. Uses the metric name conversion
@@ -109,25 +116,24 @@ public class LibratoReporter extends ScheduledReporter {
                 httpPoster,
                 prefix,
                 prefixDelimiter,
-                deltaTracker);
+                deltaTracker,
+                this,
+                this);
 
         for (Map.Entry<String, Gauge> entry : gauges.entrySet()) {
             batch.addGauge(entry.getKey(), entry.getValue());
         }
         for (Map.Entry<String, Counter> entry : counters.entrySet()) {
-            batch.addCounterMeasurement(entry.getKey(), entry.getValue().getCount());
+            batch.addCounter(entry.getKey(), entry.getValue());
         }
         for (Map.Entry<String, Histogram> entry : histograms.entrySet()) {
-            batch.addSampling(entry.getKey(), entry.getValue());
+            batch.addHistogram(entry.getKey(), entry.getValue());
         }
         for (Map.Entry<String, Meter> entry : meters.entrySet()) {
             batch.addMeter(entry.getKey(), entry.getValue());
         }
         for (Map.Entry<String, Timer> entry : timers.entrySet()) {
-            final String timerName = entry.getKey();
-            final Timer timer = entry.getValue();
-            batch.addMeter(timerName, timer);
-            batch.addSampling(timerName, timer);
+            batch.addTimer(entry.getKey(), entry.getValue());
         }
         batch.post(source, epoch);
     }

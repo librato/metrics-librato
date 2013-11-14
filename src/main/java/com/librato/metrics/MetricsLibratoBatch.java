@@ -20,6 +20,16 @@ public class MetricsLibratoBatch extends LibratoBatch {
     private final String prefix;
     private final String prefixDelimiter;
     private final DeltaTracker deltaTracker;
+    private final DurationConverter durationConverter;
+    private final RateConverter rateConverter;
+
+    public static interface RateConverter {
+        double convertMetricRate(double rate);
+    }
+
+    public static interface DurationConverter {
+        double convertMetricDuration(double duration);
+    }
 
     /**
      * a string used to identify the library
@@ -40,12 +50,16 @@ public class MetricsLibratoBatch extends LibratoBatch {
                                HttpPoster httpPoster,
                                String prefix,
                                String prefixDelimiter,
-                               DeltaTracker deltaTracker) {
+                               DeltaTracker deltaTracker,
+                               RateConverter rateConverter,
+                               DurationConverter durationConverter) {
         super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER, httpPoster);
         this.expansionConfig = Preconditions.checkNotNull(expansionConfig);
         this.prefix = checkPrefix(prefix);
         this.prefixDelimiter = prefixDelimiter;
         this.deltaTracker = deltaTracker;
+        this.rateConverter = rateConverter;
+        this.durationConverter = durationConverter;
     }
 
     public void post(String source, long epoch) {
@@ -82,42 +96,44 @@ public class MetricsLibratoBatch extends LibratoBatch {
     public void addHistogram(String name, Histogram histogram) {
         final Long countDelta = deltaTracker.getDelta(name, histogram.getCount());
         maybeAdd(COUNT, name, countDelta);
-        addSampling(name, histogram);
+        final boolean convertDurations = false;
+        addSampling(name, histogram, convertDurations);
     }
 
     public void addMeter(String name, Metered meter) {
         final Long deltaCount = deltaTracker.getDelta(name, meter.getCount());
         maybeAdd(COUNT, name, deltaCount);
-        maybeAdd(RATE_MEAN, name, meter.getMeanRate());
-        maybeAdd(RATE_1_MINUTE, name, meter.getOneMinuteRate());
-        maybeAdd(RATE_5_MINUTE, name, meter.getFiveMinuteRate());
-        maybeAdd(RATE_15_MINUTE, name, meter.getFifteenMinuteRate());
+        maybeAdd(RATE_MEAN, name, convertRate(meter.getMeanRate()));
+        maybeAdd(RATE_1_MINUTE, name, convertRate(meter.getOneMinuteRate()));
+        maybeAdd(RATE_5_MINUTE, name, convertRate(meter.getFiveMinuteRate()));
+        maybeAdd(RATE_15_MINUTE, name, convertRate(meter.getFifteenMinuteRate()));
     }
 
     public void addTimer(String name, Timer timer) {
         addMeter(name, timer);
-        addSampling(name, timer);
+        final boolean convertDurations = true;
+        addSampling(name, timer, convertDurations);
     }
 
-    public void addSampling(String name, Sampling sampling) {
+    public void addSampling(String name, Sampling sampling, boolean convert) {
         final Snapshot snapshot = sampling.getSnapshot();
-        maybeAdd(MEDIAN, name, snapshot.getMedian());
-        maybeAdd(PCT_75, name, snapshot.get75thPercentile());
-        maybeAdd(PCT_95, name, snapshot.get95thPercentile());
-        maybeAdd(PCT_98, name, snapshot.get98thPercentile());
-        maybeAdd(PCT_99, name, snapshot.get99thPercentile());
-        maybeAdd(PCT_999, name, snapshot.get999thPercentile());
+        maybeAdd(MEDIAN, name, convertDuration(snapshot.getMedian(), convert));
+        maybeAdd(PCT_75, name, convertDuration(snapshot.get75thPercentile(), convert));
+        maybeAdd(PCT_95, name, convertDuration(snapshot.get95thPercentile(), convert));
+        maybeAdd(PCT_98, name, convertDuration(snapshot.get98thPercentile(), convert));
+        maybeAdd(PCT_99, name, convertDuration(snapshot.get99thPercentile(), convert));
+        maybeAdd(PCT_999, name, convertDuration(snapshot.get999thPercentile(), convert));
 
         final double sum = snapshot.size() * snapshot.getMean();
-        final long size = (long) snapshot.size();
-        if (size > 0) {
+        final long count = (long) snapshot.size();
+        if (count > 0) {
             addMeasurement(
                     new MultiSampleGaugeMeasurement(
                             addPrefix(name),
-                            size,
-                            sum,
-                            snapshot.getMax(),
-                            snapshot.getMin(),
+                            count,
+                            convertDuration(sum, convert),
+                            convertDuration(snapshot.getMax(), convert),
+                            convertDuration(snapshot.getMin(), convert),
                             null));
         }
     }
@@ -151,6 +167,18 @@ public class MetricsLibratoBatch extends LibratoBatch {
     private boolean isANumber(Number number) {
         final double doubleValue = number.doubleValue();
         return !(Double.isNaN(doubleValue) || Double.isInfinite(doubleValue));
+    }
+
+    private double convertRate(double rate) {
+        return rateConverter.convertMetricRate(rate);
+    }
+
+    private double convertDuration(double duration, boolean convert) {
+        return convert ? convertDuration(duration) : duration;
+    }
+
+    private double convertDuration(double duration) {
+        return durationConverter.convertMetricDuration(duration);
     }
 
 }
