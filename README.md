@@ -5,7 +5,7 @@ The `LibratoReporter` class runs in the background, publishing metrics from <a h
     <dependency>
         <groupId>com.librato.metrics</groupId>
         <artifactId>metrics-librato</artifactId>
-        <version>2.2.0.3</version>
+        <version>3.0.1.0</version>
     </dependency>
 
 ## Usage
@@ -13,12 +13,12 @@ The `LibratoReporter` class runs in the background, publishing metrics from <a h
 During the initialization of your program, simply use the `.enable` method with the appropriately configured `LibratoReporter.Builder` class. See the setters on that method for all the available customizations (there are quite a few). The constructor for the `Builder` requires only the things that are necessary; sane defaults are provided for the rest of the options.
 
     LibratoReporter.enable(
-	    LibratoReporter.builder(
-		    "<Librato Username>", 
-			"<Librato API Token>", 
-			"<Source Identifier (usually hostname)>"), 
-		10, 
-		TimeUnit.SECONDS);
+        LibratoReporter.builder(
+            "<Librato Username>",
+            "<Librato API Token>",
+            "<Source Identifier (usually hostname)>"),
+        10,
+        TimeUnit.SECONDS);
 
 ## Versioning
 
@@ -105,12 +105,12 @@ _Note that Coda Timer percentiles are determined using configurable <a href="htt
 While this library aims to accurately report all of the data that Coda Metrics provides, it can become somewhat verbose. One can reduce the number of metrics reported for Coda Timers, Coda Meters, and Coda Histograms when configuring the reporter. The percentiles, rates, and count for these metrics can be whitelisted (they are all on by default). In order to do this, supply a `LibratoReporter.MetricExpansionConfig` to the builder:
 
     LibratoReporter.builder(<username>, <token>, <source>)
-		.setExpansionConfig(
-			new MetricExpansionConfig(
-				EnumSet.of(
-					LibratoReporter.ExpandedMetric.PCT_95,
-					LibratoReporter.ExpandedMetric.RATE_1_MINUTE)))
-		.build();
+        .setExpansionConfig(
+            new MetricExpansionConfig(
+                EnumSet.of(
+                    LibratoReporter.ExpandedMetric.PCT_95,
+                    LibratoReporter.ExpandedMetric.RATE_1_MINUTE)))
+        .build();
 
 In this configuration, the reporter will only report the 95th percentile and 1 minute rate for these metrics. Note that the `ComplexGauge`s will still be reported.
 
