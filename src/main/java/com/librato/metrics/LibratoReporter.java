@@ -161,7 +161,7 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         public Builder(MetricRegistry registry, String username, String token, String source) {
             this.registry = registry;
             this.source = source;
-            this.httpPoster = NingHttpPoster.newPoster(username, token);
+            this.httpPoster = NingHttpPoster.newPoster(username, token, "https://metrics-api.librato.com");
         }
 
         /**
