@@ -38,7 +38,7 @@ This section describes how each of the Coda metrics translate into Librato metri
 
 ### Coda Gauges
 
-Given a Coda Counter with name `foo`, the following values are reported:
+Given a Coda Gauge with name `foo`, the following values are reported:
 
 * Gauge: name=foo
 
