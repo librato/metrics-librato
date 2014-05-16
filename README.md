@@ -12,9 +12,11 @@ The `LibratoReporter` class runs in the background, publishing metrics from <a h
 
 During the initialization of your program, simply use the `.enable` method with the appropriately configured `LibratoReporter.Builder` class. See the setters on that method for all the available customizations (there are quite a few). The constructor for the `Builder` requires only the things that are necessary; sane defaults are provided for the rest of the options.
 
+    MetricRegistry registry = envrionment.metrics(); // if you're not using dropwizard, use your own registry
     LibratoReporter.enable(
         LibratoReporter.builder(
-            "<Librato Username>",
+            registry,
+            "<Librato Email>",
             "<Librato API Token>",
             "<Source Identifier (usually hostname)>"),
         10,
@@ -34,7 +36,7 @@ This library will output a few different kinds of Librato Metrics to Librato:
 
 ## Translation to Librato Metrics
 
-This section describes how each of the Coda metrics translate into Librato metrics. 
+This section describes how each of the Coda metrics translate into Librato metrics.
 
 ### Coda Gauges
 
