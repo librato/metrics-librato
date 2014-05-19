@@ -5,8 +5,14 @@ The `LibratoReporter` class runs in the background, publishing metrics from <a h
     <dependency>
         <groupId>com.librato.metrics</groupId>
         <artifactId>metrics-librato</artifactId>
-        <version>3.0.1.0</version>
+        <version>4.0.1.0</version>
     </dependency>
+
+## Updating from 3.x?
+
+The `metrics-librato:4.x.x.x` release depends on `librato-java:1.x` which includes a fix for an [issue](https://github.com/librato/librato-java/pull/12) 
+that was causing dashes to be stripped from metric names incorrectly. It is recommended to view the [readme](https://github.com/librato/librato-java#updating-from-01x-)
+for that project before upgrading to understand how some existing metric names might change.
 
 ## Usage
 
@@ -116,5 +122,19 @@ While this library aims to accurately report all of the data that Coda Metrics p
 
 In this configuration, the reporter will only report the 95th percentile and 1 minute rate for these metrics. Note that the `ComplexGauge`s will still be reported.
 
+## Custom Sources
+
+Sources are globally set for the LibratoReporter as described above. Sometimes though it is desirable to use custom
+sources for certain signals. To do this, supply a sourceRegex to the LibratoReporter builder.
+
+The regular expression must contain one matching group. As `metrics-librato` takes metrics from the registry and
+batches them, it will apply this regular expression (if supplied) to each metric name.  If the regular expression 
+matches, it will use the first matching group as the source for that metric, and everything after the entire
+expression match will be used as the actual metric name.
+
+    builder.setSourceRegex(Pattern.compile("^(.*?)--"))
+    
+The above regular expression will take a meter name like "uid:42--api.latency" and report that with a source of
+`uid:42` and a metric name of `api.latency`.
 
 

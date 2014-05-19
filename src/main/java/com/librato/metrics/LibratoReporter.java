@@ -7,6 +7,7 @@ import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * A reporter for publishing metrics to <a href="http://metrics.librato.com/">Librato Metrics</a>
@@ -21,6 +22,7 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
     private final HttpPoster httpPoster;
     private final String prefix;
     private final String prefixDelimiter;
+    private final Pattern sourceRegex;
     protected final MetricRegistry registry;
     protected final Clock clock;
     protected final MetricExpansionConfig expansionConfig;
@@ -41,7 +43,8 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
                             MetricExpansionConfig expansionConfig,
                             HttpPoster httpPoster,
                             String prefix,
-                            String prefixDelimiter) {
+                            String prefixDelimiter,
+                            Pattern sourceRegex) {
         super(registry, name, filter, rateUnit, durationUnit);
         this.registry = registry;
         this.sanitizer = customSanitizer;
@@ -53,6 +56,7 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         this.httpPoster = httpPoster;
         this.prefix = prefix;
         this.prefixDelimiter = prefixDelimiter;
+        this.sourceRegex = sourceRegex;
         this.deltaTracker = new DeltaTracker(new DeltaMetricSupplier(registry, filter));
     }
 
@@ -118,7 +122,8 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
                 prefixDelimiter,
                 deltaTracker,
                 this,
-                this);
+                this,
+                sourceRegex);
 
         for (Map.Entry<String, Gauge> entry : gauges.entrySet()) {
             batch.addGauge(entry.getKey(), entry.getValue());
@@ -157,11 +162,24 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         private HttpPoster httpPoster;
         private String prefix;
         private String prefixDelimiter = ".";
+        private Pattern sourceRegex;
 
         public Builder(MetricRegistry registry, String username, String token, String source) {
             this.registry = registry;
             this.source = source;
             this.httpPoster = NingHttpPoster.newPoster(username, token, "https://metrics-api.librato.com/v1/metrics");
+        }
+
+        /**
+         * Sets the source regular expression to be applied against metric names to determine dynamic sources.
+         *
+         * @param sourceRegex the regular expression
+         * @return itself
+         */
+        @SuppressWarnings("unused")
+        public Builder setSourceRegex(Pattern sourceRegex) {
+            this.sourceRegex = sourceRegex;
+            return this;
         }
 
         /**
@@ -350,7 +368,8 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
                     expansionConfig,
                     httpPoster,
                     prefix,
-                    prefixDelimiter);
+                    prefixDelimiter,
+                    sourceRegex);
         }
     }
 
