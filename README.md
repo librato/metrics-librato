@@ -116,5 +116,19 @@ While this library aims to accurately report all of the data that Coda Metrics p
 
 In this configuration, the reporter will only report the 95th percentile and 1 minute rate for these metrics. Note that the `ComplexGauge`s will still be reported.
 
+## Custom Sources
+
+Sources are globally set for the LibratoReporter as described above. Sometimes though it is desirable to use custom
+sources for certain signals. To do this, supply a sourceRegex to the LibratoReporter builder.
+
+The regular expression must contain one matching group. As `metrics-librato` takes metrics from the registry and
+batches them, it will apply this regular expression (if supplied) to each metric name.  If the regular expression 
+matches, it will use the first matching group as the source for that metric, and everything after the entire
+expression match will be used as the actual metric name.
+
+    builder.setSourceRegex(Pattern.compile("^(.*?)--"))
+    
+The above regular expression will take a meter name like "uid:42--api.latency" and report that with a source of
+`uid:42` and a metric name of `api.latency`.
 
 
