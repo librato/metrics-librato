@@ -5,8 +5,14 @@ The `LibratoReporter` class runs in the background, publishing metrics from <a h
     <dependency>
         <groupId>com.librato.metrics</groupId>
         <artifactId>metrics-librato</artifactId>
-        <version>3.0.1.0</version>
+        <version>4.0.1.0</version>
     </dependency>
+
+## Updating from 3.x?
+
+The `metrics-librato:4.x.x.x` release depends on `librato-java:1.x` which includes a fix for an [issue](https://github.com/librato/librato-java/pull/12) 
+that was causing dashes to be stripped from metric names incorrectly. It is recommended to view the [readme](https://github.com/librato/librato-java#updating-from-01x-)
+for that project before upgrading to understand how some existing metric names might change.
 
 ## Usage
 
