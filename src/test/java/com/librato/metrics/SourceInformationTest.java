@@ -33,4 +33,11 @@ public class SourceInformationTest extends TestCase {
         Assert.assertNull(info.source);
         Assert.assertEquals("foo-bar", info.name);
     }
+
+    public void testExtractsGroupingInTheMiddleOfAnExpression() throws Exception {
+        Pattern pattern = Pattern.compile("^--(.*?)--");
+        SourceInformation info = SourceInformation.from(pattern, "--foo--bar.baz");
+        Assert.assertEquals("foo", info.source);
+        Assert.assertEquals("bar.baz", info.name);
+    }
 }
