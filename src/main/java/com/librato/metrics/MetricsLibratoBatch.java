@@ -7,6 +7,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import static com.librato.metrics.LibratoReporter.ExpandedMetric.*;
 
@@ -22,6 +23,7 @@ public class MetricsLibratoBatch extends LibratoBatch {
     private final DeltaTracker deltaTracker;
     private final DurationConverter durationConverter;
     private final RateConverter rateConverter;
+    private final Pattern sourceRegex;
 
     public static interface RateConverter {
         double convertMetricRate(double rate);
@@ -52,7 +54,8 @@ public class MetricsLibratoBatch extends LibratoBatch {
                                String prefixDelimiter,
                                DeltaTracker deltaTracker,
                                RateConverter rateConverter,
-                               DurationConverter durationConverter) {
+                               DurationConverter durationConverter,
+                               Pattern sourceRegex) {
         super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER, httpPoster);
         this.expansionConfig = Preconditions.checkNotNull(expansionConfig);
         this.prefix = checkPrefix(prefix);
@@ -60,6 +63,7 @@ public class MetricsLibratoBatch extends LibratoBatch {
         this.deltaTracker = deltaTracker;
         this.rateConverter = rateConverter;
         this.durationConverter = durationConverter;
+        this.sourceRegex = sourceRegex;
     }
 
     public void post(String source, long epoch) {
@@ -69,12 +73,14 @@ public class MetricsLibratoBatch extends LibratoBatch {
 
     @Override
     public void addCounterMeasurement(String name, Long value) {
-        super.addCounterMeasurement(addPrefix(name), value);
+        SourceInformation info = SourceInformation.from(sourceRegex, name);
+        super.addCounterMeasurement(info.source, addPrefix(info.name), value);
     }
 
     @Override
     public void addGaugeMeasurement(String name, Number value) {
-        super.addGaugeMeasurement(addPrefix(name), value);
+        SourceInformation info = SourceInformation.from(sourceRegex, name);
+        super.addGaugeMeasurement(info.source, addPrefix(info.name), value);
     }
 
     // begin direct support for Coda Metrics

@@ -6,12 +6,12 @@ import org.hamcrest.Description;
 import org.junit.Before;
 import org.junit.Test;
 
-import javax.xml.datatype.Duration;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 import static com.librato.metrics.LibratoReporter.ExpandedMetric.*;
 import static org.hamcrest.CoreMatchers.not;
@@ -171,6 +171,22 @@ public class MetricsLibratoBatchTest {
         when(counter.getCount()).thenReturn(1L);
         batch.addCounter("foo", counter);
         assertThat(batch, HasMeasurement.of("foo", 1L, SingleValueGaugeMeasurement.class));
+    }
+
+    @Test
+    public void testGaugeWithSource() throws Exception {
+        final MetricsLibratoBatch batch = newBatch();
+        batch.addGauge("mysource--foo", new FakeGauge(1L));
+        assertThat(batch, HasMeasurement.of("mysource", "foo", 1L, SingleValueGaugeMeasurement.class));
+    }
+
+    @Test
+    public void testCounterWithSource() throws Exception {
+        final MetricsLibratoBatch batch = newBatch();
+        final Counter counter = mock(Counter.class);
+        when(counter.getCount()).thenReturn(1L);
+        batch.addCounter("othersource--foo", counter);
+        assertThat(batch, HasMeasurement.of("othersource", "foo", 1L, SingleValueGaugeMeasurement.class));
     }
 
     @Test
@@ -347,22 +363,28 @@ public class MetricsLibratoBatchTest {
     }
 
     static class HasMeasurement extends BaseMatcher<LibratoBatch> {
+        private final String source;
         private final String name;
         private final Number value;
         private final Class<?> klass;
 
-        public HasMeasurement(String name, Number value, Class<?> klass) {
+        public HasMeasurement(String source, String name, Number value, Class<?> klass) {
+            this.source = source;
             this.name = name;
             this.value = value;
             this.klass = klass;
         }
 
         public static HasMeasurement of(String name) {
-            return new HasMeasurement(name, null, null);
+            return new HasMeasurement(null, name, null, null);
         }
 
         public static HasMeasurement of(String name, Number value, Class<?> klass) {
-            return new HasMeasurement(name, value, klass);
+            return new HasMeasurement(null, name, value, klass);
+        }
+
+        public static HasMeasurement of(String source, String name, Number value, Class<?> klass) {
+            return new HasMeasurement(source, name, value, klass);
         }
 
         public boolean matches(Object o) {
@@ -374,8 +396,20 @@ public class MetricsLibratoBatchTest {
                 if (measurement.getName().equals(name)) {
                     if (value != null) {
                         final Number measurementValue = measurement.toMap().get("value");
-                        return measurementValue != null && measurementValue.equals(value);
+                        if (measurementValue == null || !measurementValue.equals(value)) {
+                            return false;
+                        }
                     }
+                    if (source != null && measurement.getSource() == null) {
+                        return false;
+                    }
+                    if (source == null && measurement.getSource() != null) {
+                        return false;
+                    }
+                    if (source != null && !source.equals(measurement.getSource())) {
+                        return false;
+                    }
+
                     return true;
                 }
             }
@@ -435,6 +469,7 @@ public class MetricsLibratoBatchTest {
         final int postBatchSize = 100;
         final Sanitizer sanitizer = Sanitizer.NO_OP;
         final LibratoReporter.MetricExpansionConfig expansionConfig = new LibratoReporter.MetricExpansionConfig(EnumSet.copyOf(metrics));
+        final Pattern sourceRegex = Pattern.compile("^(.*?)--");
         return new MetricsLibratoBatch(
                 postBatchSize,
                 sanitizer,
@@ -446,6 +481,7 @@ public class MetricsLibratoBatchTest {
                 prefixDelimiter,
                 deltaTracker,
                 rateConverter,
-                durationConverter);
+                durationConverter,
+                sourceRegex);
     }
 }
