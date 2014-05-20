@@ -43,8 +43,25 @@ public class MetricsLibratoBatchTest {
         assertThat(batch, HasMeasurement.of("apples.98th"));
         assertThat(batch, HasMeasurement.of("apples.99th"));
         assertThat(batch, HasMeasurement.of("apples.999th"));
+        assertThat(batch, HasMeasurement.of("apples"));
     }
 
+    @Test
+    public void testSamplingWithCustomSource() throws Exception {
+        final MetricsLibratoBatch batch = newBatch(EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        batch.addSampling("farm--apples", new Sampling() {
+            public Snapshot getSnapshot() {
+                return new Snapshot(new long[]{1});
+            }
+        }, false);
+        assertThat(batch, HasMeasurement.of("farm", "apples.median"));
+        assertThat(batch, HasMeasurement.of("farm", "apples.75th"));
+        assertThat(batch, HasMeasurement.of("farm", "apples.95th"));
+        assertThat(batch, HasMeasurement.of("farm", "apples.98th"));
+        assertThat(batch, HasMeasurement.of("farm", "apples.99th"));
+        assertThat(batch, HasMeasurement.of("farm", "apples.999th"));
+        assertThat(batch, HasMeasurement.of("farm", "apples"));
+    }
 
     @Test
     public void testMeteredWithAll() throws Exception {
@@ -178,6 +195,13 @@ public class MetricsLibratoBatchTest {
         final MetricsLibratoBatch batch = newBatch();
         batch.addGauge("mysource--foo", new FakeGauge(1L));
         assertThat(batch, HasMeasurement.of("mysource", "foo", 1L, SingleValueGaugeMeasurement.class));
+    }
+
+    @Test
+    public void testGaugeWithSourceAndDashesInName() throws Exception {
+        final MetricsLibratoBatch batch = newBatch();
+        batch.addGauge("mysource--foo-bar", new FakeGauge(1L));
+        assertThat(batch, HasMeasurement.of("mysource", "foo-bar", 1L, SingleValueGaugeMeasurement.class));
     }
 
     @Test
@@ -377,6 +401,10 @@ public class MetricsLibratoBatchTest {
 
         public static HasMeasurement of(String name) {
             return new HasMeasurement(null, name, null, null);
+        }
+
+        public static HasMeasurement of(String source, String name) {
+            return new HasMeasurement(source, name, null, null);
         }
 
         public static HasMeasurement of(String name, Number value, Class<?> klass) {

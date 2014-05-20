@@ -40,4 +40,11 @@ public class SourceInformationTest extends TestCase {
         Assert.assertEquals("foo", info.source);
         Assert.assertEquals("bar.baz", info.name);
     }
+
+    public void testDoesNotMatch() throws Exception {
+        Pattern pattern = Pattern.compile("^--(.+?)--");
+        SourceInformation info = SourceInformation.from(pattern, "foo--bar.baz");
+        Assert.assertNull(info.source);
+        Assert.assertEquals("foo--bar.baz", info.name);
+    }
 }

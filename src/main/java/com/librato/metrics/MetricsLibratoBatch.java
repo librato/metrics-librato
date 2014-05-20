@@ -133,9 +133,11 @@ public class MetricsLibratoBatch extends LibratoBatch {
         final double sum = snapshot.size() * snapshot.getMean();
         final long count = (long) snapshot.size();
         if (count > 0) {
+            SourceInformation info = SourceInformation.from(sourceRegex, name);
             addMeasurement(
                     new MultiSampleGaugeMeasurement(
-                            addPrefix(name),
+                            info.source,
+                            addPrefix(info.name),
                             count,
                             convertDuration(sum, convert),
                             convertDuration(snapshot.getMax(), convert),
