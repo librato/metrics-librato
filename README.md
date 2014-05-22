@@ -18,7 +18,7 @@ for that project before upgrading to understand how some existing metric names m
 
 During the initialization of your program, simply use the `.enable` method with the appropriately configured `LibratoReporter.Builder` class. See the setters on that method for all the available customizations (there are quite a few). The constructor for the `Builder` requires only the things that are necessary; sane defaults are provided for the rest of the options.
 
-    MetricRegistry registry = envrionment.metrics(); // if you're not using dropwizard, use your own registry
+    MetricRegistry registry = environment.metrics(); // if you're not using dropwizard, use your own registry
     LibratoReporter.enable(
         LibratoReporter.builder(
             registry,
