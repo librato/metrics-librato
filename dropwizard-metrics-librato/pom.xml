@@ -15,6 +15,47 @@
         <metrics.librato.version>4.0.1.1</metrics.librato.version>
         <dropwizard.metrics.version>0.7.0</dropwizard.metrics.version>
     </properties>
+    <scm>
+        <url>https://github.com/librato/metrics-librato</url>
+        <connection>scm:git:git@github.com:librato/metrics-librato.git</connection>
+        <developerConnection>scm:git:git@github.com:librato/metrics-librato.git</developerConnection>
+        <tag>HEAD</tag>
+    </scm>
+    <build>
+        <pluginManagement>
+            <plugins>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-release-plugin</artifactId>
+                    <version>2.4.1</version>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-source-plugin</artifactId>
+                    <executions>
+                        <execution>
+                            <id>attach-sources</id>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+                <plugin>
+                    <groupId>org.apache.maven.plugins</groupId>
+                    <artifactId>maven-javadoc-plugin</artifactId>
+                    <executions>
+                        <execution>
+                            <id>attach-javadocs</id>
+                            <goals>
+                                <goal>jar</goal>
+                            </goals>
+                        </execution>
+                    </executions>
+                </plugin>
+            </plugins>
+        </pluginManagement>
+    </build>
     <dependencies>
         <dependency>
             <groupId>io.dropwizard</groupId>
