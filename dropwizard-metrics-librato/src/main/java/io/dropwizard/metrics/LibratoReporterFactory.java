@@ -45,30 +45,30 @@ public class LibratoReporterFactory extends BaseReporterFactory {
     private String prefixDelimiter;
 
     public ScheduledReporter build(MetricRegistry registry) {
-        Pattern sourceRegexPattern = null;
-        if (sourceRegex != null) {
-            sourceRegexPattern = Pattern.compile(sourceRegex);
-        }
-        HttpPoster httpPoster = null;
-        if (libratoUrl != null) {
-            httpPoster = NingHttpPoster.newPoster(username, token, libratoUrl);
-        }
         LibratoReporter.Builder builder = LibratoReporter.builder(registry, username, token, source)
-                .setPrefix(prefix)
                 .setRateUnit(getRateUnit())
                 .setDurationUnit(getDurationUnit())
-                .setName(name)
-                .setFilter(getFilter())
-                .setHttpPoster(httpPoster)
-                .setSourceRegex(sourceRegexPattern);
-
+                .setFilter(getFilter());
+        if (sourceRegex != null) {
+            Pattern sourceRegexPattern = Pattern.compile(sourceRegex);
+            builder.setSourceRegex(sourceRegexPattern);
+        }
+        if (libratoUrl != null) {
+            HttpPoster httpPoster = NingHttpPoster.newPoster(username, token, libratoUrl);
+            builder.setHttpPoster(httpPoster);
+        }
+        if (prefix != null) {
+            builder.setPrefix(prefix);
+        }
+        if (name != null) {
+            builder.setName(name);
+        }
         if (timeout != null) {
             builder.setTimeout(timeout, TimeUnit.SECONDS);
         }
         if (prefixDelimiter != null) {
             builder.setPrefix(prefixDelimiter);
         }
-
         return builder.build();
     }
 }
