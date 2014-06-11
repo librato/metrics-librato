@@ -23,6 +23,6 @@
     <packaging>pom</packaging>
     <modules>
         <module>metrics-librato</module>
-        <module>metrics-librato-dropwizard</module>
+        <module>dropwizard-metrics-librato</module>
     </modules>
 </project>
