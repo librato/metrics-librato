@@ -6,10 +6,12 @@
     <groupId>com.librato.metrics</groupId>
     <artifactId>metrics-librato-dropwizard</artifactId>
     <version>0.7.0.0-SNAPSHOT</version>
+    <name>Metrics Librato Dropwizard Support</name>
     <description>
         Dropwizard integration with metrics-librato
     </description>
     <properties>
+        <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <metrics.librato.version>4.0.1.1</metrics.librato.version>
         <dropwizard.metrics.version>0.7.0</dropwizard.metrics.version>
     </properties>
