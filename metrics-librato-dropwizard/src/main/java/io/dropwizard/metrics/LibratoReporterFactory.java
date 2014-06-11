@@ -24,7 +24,7 @@ public class LibratoReporterFactory extends BaseReporterFactory {
     private String source = null;
 
     @JsonProperty
-    private long timeout = 30000;
+    private long timeout = 5;
 
     @JsonProperty
     private String prefix = null;
@@ -34,7 +34,7 @@ public class LibratoReporterFactory extends BaseReporterFactory {
 
     public ScheduledReporter build(MetricRegistry registry) {
         return LibratoReporter.builder(registry, username, token, source)
-                .setTimeout(timeout, TimeUnit.MILLISECONDS)
+                .setTimeout(timeout, TimeUnit.SECONDS)
                 .setPrefix(prefix)
                 .setRateUnit(getRateUnit())
                 .setDurationUnit(getDurationUnit())

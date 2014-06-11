@@ -137,4 +137,27 @@ expression match will be used as the actual metric name.
 The above regular expression will take a meter name like "uid:42--api.latency" and report that with a source of
 `uid:42` and a metric name of `api.latency`.
 
+## Dropwizard Integration
 
+If you are using Dropwizard 0.7.x, you can send metrics to Librato by configuring an entry in your Dropwizard YAML config
+file.
+
+First, add the `metrics-librato-dropwizard` dependency in your POM:
+
+    <dependency>
+        <groupId>com.librato.metrics</groupId>
+        <artifactId>metrics-librato-dropwizard</artifactId>
+        <version>0.7.0.0</version>
+    </dependency>
+    
+Next, add a `metrics` configuration element to your YAML config file:
+
+    metrics:
+      reporters:
+        - type: librato
+          username: "<Librato Email>"
+          token: "<Librato API Token>""
+          source: "<Source Identifier (usually hostname)>"
+          timeout: [optional (int), number of seconds, defaults to 5]
+          prefix: [optional (string), prepended to metric names]
+          name: [optional (string), name of the reporter]
