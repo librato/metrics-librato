@@ -137,4 +137,6 @@ expression match will be used as the actual metric name.
 The above regular expression will take a meter name like "uid:42--api.latency" and report that with a source of
 `uid:42` and a metric name of `api.latency`.
 
+## Using Dropwizard?
 
+The [dropwizard-librato](https://github.com/librato/dropwizard-librato) project allows you to send Metrics from within your Dropwizard application to Librato Metrics by adding a section to your config file.
