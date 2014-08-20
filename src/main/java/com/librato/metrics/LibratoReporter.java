@@ -2,6 +2,7 @@ package com.librato.metrics;
 
 import com.codahale.metrics.*;
 import com.codahale.metrics.Timer;
+import com.ning.http.client.AsyncHttpClientConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -148,6 +149,8 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
      * sane default values for everything else.
      */
     public static class Builder {
+        private String username;
+        private String token;
         private final String source;
         private Sanitizer sanitizer = Sanitizer.NO_OP;
         private long timeout = 5;
@@ -163,11 +166,13 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         private String prefix;
         private String prefixDelimiter = ".";
         private Pattern sourceRegex;
+        private AsyncHttpClientConfig httpClientConfig;
 
         public Builder(MetricRegistry registry, String username, String token, String source) {
             this.registry = registry;
+            this.username = username;
+            this.token = token;
             this.source = source;
-            this.httpPoster = NingHttpPoster.newPoster(username, token, "https://metrics-api.librato.com/v1/metrics");
         }
 
         /**
@@ -349,11 +354,23 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         }
 
         /**
+         * Set the http config used to post metrics.
+         * @param httpClientConfig the configuration.
+         * @return itself.
+         */
+        @SuppressWarnings("unused")
+        public Builder setHttpClientConfig(AsyncHttpClientConfig httpClientConfig) {
+            this.httpClientConfig = httpClientConfig;
+            return this;
+        }
+
+        /**
          * Build the LibratoReporter as configured by this Builder
          *
          * @return a fully configured LibratoReporter
          */
         public LibratoReporter build() {
+            constructHttpPoster();
             return new LibratoReporter(
                     registry,
                     name,
@@ -370,6 +387,20 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
                     prefix,
                     prefixDelimiter,
                     sourceRegex);
+        }
+
+        /**
+         * Construct the httpPoster with httpClientConfig if it has been set.
+         */
+        private void constructHttpPoster() {
+            if (this.httpPoster == null) {
+                String url = "https://metrics-api.librato.com/v1/metrics";
+                if (httpClientConfig == null) {
+                    this.httpPoster = NingHttpPoster.newPoster(username, token, url);
+                } else {
+                    this.httpPoster = NingHttpPoster.newPoster(username, token, url, httpClientConfig);
+                }
+            }
         }
     }
 
