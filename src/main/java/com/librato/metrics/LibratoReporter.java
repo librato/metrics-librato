@@ -393,10 +393,13 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
          * Construct the httpPoster with httpClientConfig if it has been set.
          */
         private void constructHttpPoster() {
-            if (httpPoster == null) {
-                this.httpPoster = httpClientConfig == null
-                        ? NingHttpPoster.newPoster(username, token, "https://metrics-api.librato.com/v1/metrics")
-                        : NingHttpPoster.newPoster(username, token, "https://metrics-api.librato.com/v1/metrics", httpClientConfig);
+            if (this.httpPoster == null) {
+                String url = "https://metrics-api.librato.com/v1/metrics";
+                if (httpClientConfig == null) {
+                    this.httpPoster = NingHttpPoster.newPoster(username, token, url);
+                } else {
+                    this.httpPoster = NingHttpPoster.newPoster(username, token, url, httpClientConfig);
+                }
             }
         }
     }
