@@ -58,7 +58,7 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         this.prefix = prefix;
         this.prefixDelimiter = prefixDelimiter;
         this.sourceRegex = sourceRegex;
-        this.deltaTracker = new DeltaTracker(new DeltaMetricSupplier(registry, filter));
+        this.deltaTracker = new DeltaTracker(new DeltaMetricSupplier(registry));
     }
 
     public double convertMetricDuration(double duration) {
@@ -75,11 +75,9 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
      */
     class DeltaMetricSupplier implements DeltaTracker.MetricSupplier {
         final MetricRegistry registry;
-        final MetricFilter filter;
 
-        DeltaMetricSupplier(MetricRegistry registry, MetricFilter filter) {
+        DeltaMetricSupplier(MetricRegistry registry) {
             this.registry = registry;
-            this.filter = filter;
         }
 
         public Map<String, Metric> getMetrics() {
