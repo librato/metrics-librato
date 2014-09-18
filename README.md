@@ -1,6 +1,6 @@
 ## Librato Metrics Plugin for the Metrics Library
 
-The `LibratoReporter` class runs in the background, publishing metrics from <a href="https://github.com/codahale/metrics">codahale/metrics</a> to the <a href="http://metrics.librato.com">Librato Metrics API</a> at the specified interval.
+The `LibratoReporter` class runs in the background, publishing metrics from <a href="https://github.com/dropwizard/metrics">dropwizard/metrics</a> to the <a href="http://metrics.librato.com">Librato Metrics API</a> at the specified interval.
 
     <dependency>
         <groupId>com.librato.metrics</groupId>
@@ -75,7 +75,7 @@ Given a Coda Histogram with name `foo`, the following values are reported:
 * Gauge: name=foo.999th
 * DeltaGauge: name=foo.count (represents the number of values the Coda Histogram has recorded)
 
-_Note that Coda Histogram percentiles are determined using configurable <a href="http://metrics.codahale.com/manual/core/#histograms">Reservoir Sampling</a>. Histograms by default use a non-biased uniform reservoir._
+_Note that Coda Histogram percentiles are determined using configurable <a href="https://dropwizard.github.io/metrics/3.1.0/manual/core/#histograms">Reservoir Sampling</a>. Histograms by default use a non-biased uniform reservoir._
 
 ### Coda Meters
 
@@ -106,7 +106,7 @@ Given a Coda Timer with name `foo`, the following values are reported:
 * Gauge: name=foo.5MinuteRate
 * Gauge: name=foo.15MinuteRate
 
-_Note that Coda Timer percentiles are determined using configurable <a href="http://metrics.codahale.com/manual/core/#histograms">Reservoir Sampling</a>. Coda Timers by default use an exponentially decaying reservoir to prioritize newer data._
+_Note that Coda Timer percentiles are determined using configurable <a href="https://dropwizard.github.io/metrics/3.1.0/manual/core/#histograms">Reservoir Sampling</a>. Coda Timers by default use an exponentially decaying reservoir to prioritize newer data._
 
 ## Reducing The Volume Of Metrics Reported
 
