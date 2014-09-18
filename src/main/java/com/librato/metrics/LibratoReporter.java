@@ -24,6 +24,7 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
     private final String prefix;
     private final String prefixDelimiter;
     private final Pattern sourceRegex;
+    private final boolean deleteIdleStats;
     protected final MetricRegistry registry;
     protected final Clock clock;
     protected final MetricExpansionConfig expansionConfig;
@@ -45,7 +46,8 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
                             HttpPoster httpPoster,
                             String prefix,
                             String prefixDelimiter,
-                            Pattern sourceRegex) {
+                            Pattern sourceRegex,
+                            boolean deleteIdleStats) {
         super(registry, name, filter, rateUnit, durationUnit);
         this.registry = registry;
         this.sanitizer = customSanitizer;
@@ -58,7 +60,8 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         this.prefix = prefix;
         this.prefixDelimiter = prefixDelimiter;
         this.sourceRegex = sourceRegex;
-        this.deltaTracker = new DeltaTracker(new DeltaMetricSupplier(registry, filter));
+        this.deltaTracker = new DeltaTracker(new DeltaMetricSupplier(registry));
+        this.deleteIdleStats = deleteIdleStats;
     }
 
     public double convertMetricDuration(double duration) {
@@ -75,11 +78,9 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
      */
     class DeltaMetricSupplier implements DeltaTracker.MetricSupplier {
         final MetricRegistry registry;
-        final MetricFilter filter;
 
-        DeltaMetricSupplier(MetricRegistry registry, MetricFilter filter) {
+        DeltaMetricSupplier(MetricRegistry registry) {
             this.registry = registry;
-            this.filter = filter;
         }
 
         public Map<String, Metric> getMetrics() {
@@ -133,15 +134,38 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
             batch.addCounter(entry.getKey(), entry.getValue());
         }
         for (Map.Entry<String, Histogram> entry : histograms.entrySet()) {
-            batch.addHistogram(entry.getKey(), entry.getValue());
+            String name = entry.getKey();
+            Histogram histogram = entry.getValue();
+            if (skipMetric(name, histogram)) {
+                continue;
+            }
+            batch.addHistogram(entry.getKey(), histogram);
         }
         for (Map.Entry<String, Meter> entry : meters.entrySet()) {
-            batch.addMeter(entry.getKey(), entry.getValue());
+            String name = entry.getKey();
+            Meter meter = entry.getValue();
+            if (skipMetric(name, meter)) {
+                continue;
+            }
+            batch.addMeter(name, meter);
         }
         for (Map.Entry<String, Timer> entry : timers.entrySet()) {
-            batch.addTimer(entry.getKey(), entry.getValue());
+            String name = entry.getKey();
+            Timer timer = entry.getValue();
+            if (skipMetric(name, timer)) {
+                continue;
+            }
+            batch.addTimer(name, timer);
         }
         batch.post(source, epoch);
+    }
+
+    private boolean skipMetric(String name, Counting counting) {
+        return deleteIdleStats() && deltaTracker.peekDelta(name, counting.getCount()) == 0;
+    }
+
+    private boolean deleteIdleStats() {
+        return deleteIdleStats;
     }
 
     /**
@@ -167,12 +191,24 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         private String prefixDelimiter = ".";
         private Pattern sourceRegex;
         private AsyncHttpClientConfig httpClientConfig;
+        private boolean deleteIdleStats = true;
 
         public Builder(MetricRegistry registry, String username, String token, String source) {
             this.registry = registry;
             this.username = username;
             this.token = token;
             this.source = source;
+        }
+
+        /**
+         * Sets whether or not idle timers, meters, and histograms will be send to Librato or not.
+         * @param deleteIdleStats true if idle metrics should be elided
+         * @return itself
+         */
+        @SuppressWarnings("UnusedDeclaration")
+        public Builder setDeleteIdleStats(boolean deleteIdleStats) {
+            this.deleteIdleStats = deleteIdleStats;
+            return this;
         }
 
         /**
@@ -355,6 +391,7 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
 
         /**
          * Set the http config used to post metrics.
+         *
          * @param httpClientConfig the configuration.
          * @return itself.
          */
@@ -386,7 +423,8 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
                     httpPoster,
                     prefix,
                     prefixDelimiter,
-                    sourceRegex);
+                    sourceRegex,
+                    deleteIdleStats);
         }
 
         /**

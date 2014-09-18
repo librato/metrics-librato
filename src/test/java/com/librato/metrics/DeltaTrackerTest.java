@@ -48,4 +48,21 @@ public class DeltaTrackerTest {
         converter.getDelta("bar", 5);
         assertThat(converter.getDelta("bar", 10), equalTo(5L));
     }
+
+    @Test
+    public void testPeekWorks() throws Exception {
+        converter.getDelta("foo", 1); // sets the value of 1 for the metric count
+        assertThat(converter.peekDelta("foo", 1), equalTo(0L));
+        assertThat(converter.peekDelta("foo", 1), equalTo(0L));
+        assertThat(converter.peekDelta("foo", 2), equalTo(1L));
+        assertThat(converter.peekDelta("foo", 2), equalTo(1L));
+        // now update it
+        assertThat(converter.getDelta("foo", 2), equalTo(1L));
+        assertThat(converter.getDelta("foo", 2), equalTo(0L));
+        // now peek it
+        assertThat(converter.peekDelta("foo", 2), equalTo(0L));
+        assertThat(converter.peekDelta("foo", 2), equalTo(0L));
+        assertThat(converter.peekDelta("foo", 3), equalTo(1L));
+        assertThat(converter.peekDelta("foo", 3), equalTo(1L));
+    }
 }
