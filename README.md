@@ -5,7 +5,7 @@ The `LibratoReporter` class runs in the background, publishing metrics from <a h
     <dependency>
         <groupId>com.librato.metrics</groupId>
         <artifactId>metrics-librato</artifactId>
-        <version>4.0.1.3</version>
+        <version>4.0.1.4</version>
     </dependency>
 
 ## Updating from 3.x?
@@ -110,6 +110,8 @@ _Note that Coda Timer percentiles are determined using configurable <a href="htt
 
 ## Reducing The Volume Of Metrics Reported
 
+### Eliding Certain Metrics
+
 While this library aims to accurately report all of the data that Coda Metrics provides, it can become somewhat verbose. One can reduce the number of metrics reported for Coda Timers, Coda Meters, and Coda Histograms when configuring the reporter. The percentiles, rates, and count for these metrics can be whitelisted (they are all on by default). In order to do this, supply a `LibratoReporter.MetricExpansionConfig` to the builder:
 
     LibratoReporter.builder(<username>, <token>, <source>)
@@ -121,6 +123,17 @@ While this library aims to accurately report all of the data that Coda Metrics p
         .build();
 
 In this configuration, the reporter will only report the 95th percentile and 1 minute rate for these metrics. Note that the `ComplexGauge`s will still be reported.
+
+### Idle Stat Detection
+
+A new feature in `4.0.1.4` detects when certain types of metrics (Meters, Histograms, and Timers) stop getting updated by the application. When this happens, `metrics-librato` will stop reporting these streams to Librato until they are updated again. Since Librato does not charge for metrics which are not submitted to the API, this can lower your cost, especially for metrics that report infrequently.
+
+This is enabled by default, but should you wish to disable this feature, you can do so when setting up the LibratoReporter:
+
+    LibratoReporter.builder(<username>, <token>, <source)
+    	...
+    	.setDeleteIdleStats(false)
+    	
 
 ## Custom Sources
 
