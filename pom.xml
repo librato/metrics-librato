@@ -26,7 +26,7 @@
         <connection>scm:git:git@github.com:librato/metrics-librato.git</connection>
         <developerConnection>scm:git:git@github.com:librato/metrics-librato.git</developerConnection>
       <tag>HEAD</tag>
-  </scm>
+    </scm>
     <properties>
         <codahale.metrics.version>3.0.1</codahale.metrics.version>
     </properties>
