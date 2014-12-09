@@ -107,6 +107,15 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
     }
 
     @Override
+    public void report() {
+        try {
+            super.report();
+        } catch (Exception exception) {
+            LOG.error("Error sending report to librato", exception);
+        }
+    }
+
+    @Override
     public void report(SortedMap<String, Gauge> gauges,
                        SortedMap<String, Counter> counters,
                        SortedMap<String, Histogram> histograms,
