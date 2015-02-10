@@ -312,9 +312,7 @@ public class MetricsLibratoBatchTest {
 
         batch.addTimer("foo", timer);
 
-        // todo: should this be using the total count from the timer instead of the snapshot? probably.
-
-        assertThat(batch, new HasMultiSampleGaugeMeasurement("foo", 4L, 20d, 10d, 0d));
+        assertThat(batch, new HasMultiSampleGaugeMeasurement("foo", 4L, 40d, 20d, 0d));
         assertThat(batch, HasMeasurement.of("foo.count", 1L, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.median", 100d, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.75th", 150d, SingleValueGaugeMeasurement.class));
@@ -357,6 +355,7 @@ public class MetricsLibratoBatchTest {
         final Number sum;
         final Number max;
         final Number min;
+        String description;
 
         HasMultiSampleGaugeMeasurement(String name, long count, Number sum, Number max, Number min) {
             this.name = name;
@@ -375,14 +374,33 @@ public class MetricsLibratoBatchTest {
                         return false;
                     }
                     final Map<String,Number> map = multi.toMap();
-                    return map.get("count").equals(count);
+                    if (!map.get("count").equals(count)) {
+                        description = "Count should have been " + count + " but was " + map.get("count");
+                        return false;
+                    }
+                    if (!map.get("sum").equals(sum)) {
+                        description = "Sum should have been " + sum + " but was " + map.get("sum");
+                        return false;
+                    }
+                    if (!map.get("max").equals(max)) {
+                        description = "Max should have been " + max + " but was " + map.get("max");
+                        return false;
+                    }
+                    if (!map.get("min").equals(min)) {
+                        description = "Min should have been " + min + " but was " + map.get("min");
+                        return false;
+                    }
+                    return true;
                 }
             }
+            description = "Could not find the measurement";
             return false;
         }
 
         public void describeTo(Description description) {
-            description.appendText("measurement with name " + name);
+            if (this.description != null) {
+                description.appendText(this.description);
+            }
         }
     }
 
