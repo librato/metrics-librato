@@ -66,9 +66,9 @@ public class MetricsLibratoBatch extends LibratoBatch {
         this.sourceRegex = sourceRegex;
     }
 
-    public void post(String source, long epoch) {
+    public BatchResult post(String source, long epoch) {
         LOG.debug("Posting measurements");
-        super.post(source, epoch);
+        return super.post(source, epoch);
     }
 
     @Override
@@ -135,14 +135,13 @@ public class MetricsLibratoBatch extends LibratoBatch {
         if (count > 0) {
             SourceInformation info = SourceInformation.from(sourceRegex, name);
             addMeasurement(
-                    new MultiSampleGaugeMeasurement(
-                            info.source,
-                            addPrefix(info.name),
-                            count,
-                            convertDuration(sum, convert),
-                            convertDuration(snapshot.getMax(), convert),
-                            convertDuration(snapshot.getMin(), convert),
-                            null));
+                    MultiSampleGaugeMeasurement.builder(addPrefix(info.name))
+                            .setSource(info.source)
+                            .setCount(count)
+                            .setSum(convertDuration(sum, convert))
+                            .setMax(convertDuration(snapshot.getMax(), convert))
+                            .setMin(convertDuration(snapshot.getMin(), convert))
+                            .build());
         }
     }
 
