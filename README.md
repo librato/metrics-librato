@@ -5,7 +5,7 @@ The `LibratoReporter` class runs in the background, publishing metrics from <a h
     <dependency>
         <groupId>com.librato.metrics</groupId>
         <artifactId>metrics-librato</artifactId>
-        <version>4.0.1.6</version>
+        <version>4.0.1.7</version>
     </dependency>
 
 ## Updating from 3.x?
@@ -124,13 +124,23 @@ While this library aims to accurately report all of the data that Coda Metrics p
 
 In this configuration, the reporter will only report the 95th percentile and 1 minute rate for these metrics. Note that the `ComplexGauge`s will still be reported.
 
+### Eliding Complex Gauges
+
+Timers and Histograms end up generating a complex gauge along with any other expanded metrics that are configured to be sent to Librato. If you wish to exclude these complex gauges, one may enable `omitComplexGauges` in the LibratoReporter.
+
+    LibratoReporter.builder(<username>, <token>, <source>)
+      .setOmitComplexGauges(true)
+      .build();
+      
+Note that in addition to the mean, complex gauges also include the minimum and maximum dimensions, so if you choose to enable this option, you will no longer have access to those summaries for those metrics.
+
 ### Idle Stat Detection
 
 A new feature in `4.0.1.4` detects when certain types of metrics (Meters, Histograms, and Timers) stop getting updated by the application. When this happens, `metrics-librato` will stop reporting these streams to Librato until they are updated again. Since Librato does not charge for metrics which are not submitted to the API, this can lower your cost, especially for metrics that report infrequently.
 
 This is enabled by default, but should you wish to disable this feature, you can do so when setting up the LibratoReporter:
 
-    LibratoReporter.builder(<username>, <token>, <source)
+    LibratoReporter.builder(<username>, <token>, <source>)
     	...
     	.setDeleteIdleStats(false)
     	
