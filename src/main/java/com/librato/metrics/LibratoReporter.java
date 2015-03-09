@@ -201,12 +201,24 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         private Pattern sourceRegex;
         private AsyncHttpClientConfig httpClientConfig;
         private boolean deleteIdleStats = true;
+        private boolean omitComplexGauges;
 
         public Builder(MetricRegistry registry, String username, String token, String source) {
             this.registry = registry;
             this.username = username;
             this.token = token;
             this.source = source;
+        }
+
+        /**
+         * Sets whether or not complex gauges (includes mean, min, max) should be sent to Librato. Only
+         * applies to Timers and Histograms.
+         * @param omitComplexGauges if the complex gauges should be elided
+         * @return itself
+         */
+        public Builder setOmitComplexGauges(boolean omitComplexGauges) {
+            this.omitComplexGauges = omitComplexGauges;
+            return this;
         }
 
         /**
