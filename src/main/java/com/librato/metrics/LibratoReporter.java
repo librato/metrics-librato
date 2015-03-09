@@ -25,6 +25,7 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
     private final String prefixDelimiter;
     private final Pattern sourceRegex;
     private final boolean deleteIdleStats;
+    private final boolean omitComplexGauges;
     protected final MetricRegistry registry;
     protected final Clock clock;
     protected final MetricExpansionConfig expansionConfig;
@@ -47,7 +48,8 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
                             String prefix,
                             String prefixDelimiter,
                             Pattern sourceRegex,
-                            boolean deleteIdleStats) {
+                            boolean deleteIdleStats,
+                            boolean omitComplexGauges) {
         super(registry, name, filter, rateUnit, durationUnit);
         this.registry = registry;
         this.sanitizer = customSanitizer;
@@ -62,6 +64,7 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         this.sourceRegex = sourceRegex;
         this.deltaTracker = new DeltaTracker(new DeltaMetricSupplier(registry));
         this.deleteIdleStats = deleteIdleStats;
+        this.omitComplexGauges = omitComplexGauges;
     }
 
     public double convertMetricDuration(double duration) {
@@ -134,7 +137,8 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
                 deltaTracker,
                 this,
                 this,
-                sourceRegex);
+                sourceRegex,
+                omitComplexGauges);
 
         for (Map.Entry<String, Gauge> entry : gauges.entrySet()) {
             batch.addGauge(entry.getKey(), entry.getValue());
@@ -201,12 +205,24 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         private Pattern sourceRegex;
         private AsyncHttpClientConfig httpClientConfig;
         private boolean deleteIdleStats = true;
+        private boolean omitComplexGauges;
 
         public Builder(MetricRegistry registry, String username, String token, String source) {
             this.registry = registry;
             this.username = username;
             this.token = token;
             this.source = source;
+        }
+
+        /**
+         * Sets whether or not complex gauges (includes mean, min, max) should be sent to Librato. Only
+         * applies to Timers and Histograms.
+         * @param omitComplexGauges if the complex gauges should be elided
+         * @return itself
+         */
+        public Builder setOmitComplexGauges(boolean omitComplexGauges) {
+            this.omitComplexGauges = omitComplexGauges;
+            return this;
         }
 
         /**
@@ -433,7 +449,8 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
                     prefix,
                     prefixDelimiter,
                     sourceRegex,
-                    deleteIdleStats);
+                    deleteIdleStats,
+                    omitComplexGauges);
         }
 
         /**

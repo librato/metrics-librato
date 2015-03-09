@@ -24,6 +24,7 @@ public class MetricsLibratoBatch extends LibratoBatch {
     private final DurationConverter durationConverter;
     private final RateConverter rateConverter;
     private final Pattern sourceRegex;
+    private final boolean omitComplexGauges;
 
     public static interface RateConverter {
         double convertMetricRate(double rate);
@@ -55,7 +56,8 @@ public class MetricsLibratoBatch extends LibratoBatch {
                                DeltaTracker deltaTracker,
                                RateConverter rateConverter,
                                DurationConverter durationConverter,
-                               Pattern sourceRegex) {
+                               Pattern sourceRegex,
+                               boolean omitComplexGauges) {
         super(postBatchSize, sanitizer, timeout, timeoutUnit, AGENT_IDENTIFIER, httpPoster);
         this.expansionConfig = Preconditions.checkNotNull(expansionConfig);
         this.prefix = checkPrefix(prefix);
@@ -64,6 +66,7 @@ public class MetricsLibratoBatch extends LibratoBatch {
         this.rateConverter = rateConverter;
         this.durationConverter = durationConverter;
         this.sourceRegex = sourceRegex;
+        this.omitComplexGauges = omitComplexGauges;
     }
 
     public BatchResult post(String source, long epoch) {
@@ -88,7 +91,7 @@ public class MetricsLibratoBatch extends LibratoBatch {
     public void addGauge(String name, Gauge gauge) {
         final Object value = gauge.getValue();
         if (value instanceof Number) {
-            final Number number = (Number)value;
+            final Number number = (Number) value;
             if (isANumber(number)) {
                 addGaugeMeasurement(name, number);
             }
@@ -130,18 +133,20 @@ public class MetricsLibratoBatch extends LibratoBatch {
         maybeAdd(PCT_99, name, convertDuration(snapshot.get99thPercentile(), convert));
         maybeAdd(PCT_999, name, convertDuration(snapshot.get999thPercentile(), convert));
 
-        final double sum = snapshot.size() * snapshot.getMean();
-        final long count = (long) snapshot.size();
-        if (count > 0) {
-            SourceInformation info = SourceInformation.from(sourceRegex, name);
-            addMeasurement(
-                    MultiSampleGaugeMeasurement.builder(addPrefix(info.name))
-                            .setSource(info.source)
-                            .setCount(count)
-                            .setSum(convertDuration(sum, convert))
-                            .setMax(convertDuration(snapshot.getMax(), convert))
-                            .setMin(convertDuration(snapshot.getMin(), convert))
-                            .build());
+        if (!omitComplexGauges) {
+            final double sum = snapshot.size() * snapshot.getMean();
+            final long count = (long) snapshot.size();
+            if (count > 0) {
+                SourceInformation info = SourceInformation.from(sourceRegex, name);
+                addMeasurement(
+                        MultiSampleGaugeMeasurement.builder(addPrefix(info.name))
+                                .setSource(info.source)
+                                .setCount(count)
+                                .setSum(convertDuration(sum, convert))
+                                .setMax(convertDuration(snapshot.getMax(), convert))
+                                .setMin(convertDuration(snapshot.getMin(), convert))
+                                .build());
+            }
         }
     }
 
