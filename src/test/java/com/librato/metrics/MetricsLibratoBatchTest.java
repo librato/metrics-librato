@@ -246,6 +246,41 @@ public class MetricsLibratoBatchTest {
         assertThat(batch, HasMeasurement.of("foo.999th", 99.9d, SingleValueGaugeMeasurement.class));
     }
 
+    @Test
+    public void testHistogramExcludesComplexGaugeIfOptionSet() throws Exception {
+        final MetricsLibratoBatch batch = newBatch(null, ".", EnumSet.allOf(LibratoReporter.ExpandedMetric.class), identityRateConverter, identityDurationConverter, true);
+        final Histogram histogram = mock(Histogram.class);
+        final Snapshot snapshot = mock(Snapshot.class);
+        when(histogram.getSnapshot()).thenReturn(snapshot);
+
+        when(histogram.getCount()).thenReturn(1L);
+        when(snapshot.size()).thenReturn(4);
+        when(snapshot.getMax()).thenReturn(10L);
+        when(snapshot.getMin()).thenReturn(0L);
+        when(snapshot.getMean()).thenReturn(5d);
+        when(snapshot.getStdDev()).thenReturn(0d);
+
+        when(snapshot.getMedian()).thenReturn(50d);
+        when(snapshot.get75thPercentile()).thenReturn(75d);
+        when(snapshot.get95thPercentile()).thenReturn(95d);
+        when(snapshot.get98thPercentile()).thenReturn(98d);
+        when(snapshot.get99thPercentile()).thenReturn(99d);
+        when(snapshot.get999thPercentile()).thenReturn(99.9);
+
+        batch.addHistogram("foo", histogram);
+
+        // XXX: should NOT have the complex gauge
+        assertThat(batch, not(new HasMultiSampleGaugeMeasurement("foo", 4L, 20d, 10d, 0d)));
+        // XXX: but *should* have the others
+        assertThat(batch, HasMeasurement.of("foo.count", 1L, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.median", 50d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.75th", 75d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.95th", 95d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.98th", 98d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.99th", 99d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.999th", 99.9d, SingleValueGaugeMeasurement.class));
+    }
+
 
 
     @Test
@@ -324,6 +359,60 @@ public class MetricsLibratoBatchTest {
         assertThat(batch, HasMeasurement.of("foo.1MinuteRate", 1d, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.5MinuteRate", 5d, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.15MinuteRate", 15d, SingleValueGaugeMeasurement.class));
+    }
+
+    @Test
+    public void testTimerExcludesComplexGaugeIfOptionSet() throws Exception {
+        final boolean omitComplexGauges = true;
+        MetricsLibratoBatch batch = newBatch(null,
+                ".",
+                EnumSet.allOf(LibratoReporter.ExpandedMetric.class),
+                identityRateConverter,
+                new MetricsLibratoBatch.DurationConverter() {
+                    public double convertMetricDuration(double duration) {
+                        return duration * 2;
+                    }
+                },
+                omitComplexGauges);
+
+        final Timer timer = mock(Timer.class);
+        final Snapshot snapshot = mock(Snapshot.class);
+        when(timer.getSnapshot()).thenReturn(snapshot);
+        when(timer.getCount()).thenReturn(1L);
+        when(snapshot.size()).thenReturn(4);
+        when(snapshot.getMax()).thenReturn(10L);
+        when(snapshot.getMin()).thenReturn(0L);
+        when(snapshot.getMean()).thenReturn(5d);
+        when(snapshot.getStdDev()).thenReturn(0d);
+        when(snapshot.getMedian()).thenReturn(50d);
+        when(snapshot.get75thPercentile()).thenReturn(75d);
+        when(snapshot.get95thPercentile()).thenReturn(95d);
+        when(snapshot.get98thPercentile()).thenReturn(98d);
+        when(snapshot.get99thPercentile()).thenReturn(99d);
+        when(snapshot.get999thPercentile()).thenReturn(99.9);
+        when(timer.getCount()).thenReturn(1L).thenReturn(2L);
+        when(timer.getMeanRate()).thenReturn(2d);
+        when(timer.getOneMinuteRate()).thenReturn(1d);
+        when(timer.getFiveMinuteRate()).thenReturn(5d);
+        when(timer.getFifteenMinuteRate()).thenReturn(15d);
+
+        batch.addTimer("foo", timer);
+
+        // XXX: should NOT have the multi-sample gauge measurement
+        assertThat(batch, not(new HasMultiSampleGaugeMeasurement("foo", 4L, 40d, 20d, 0d)));
+        // XXX: but it *should* have the others
+        assertThat(batch, HasMeasurement.of("foo.median", 100d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.75th", 150d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.95th", 190d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.98th", 196d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.99th", 198d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.999th", 199.8d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.meanRate", 2d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.1MinuteRate", 1d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.5MinuteRate", 5d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.15MinuteRate", 15d, SingleValueGaugeMeasurement.class));
+        assertThat(batch, HasMeasurement.of("foo.count", 1L, SingleValueGaugeMeasurement.class));
+
     }
 
     @Test
@@ -512,6 +601,15 @@ public class MetricsLibratoBatchTest {
                                          Set<LibratoReporter.ExpandedMetric> metrics,
                                          MetricsLibratoBatch.RateConverter rateConverter,
                                          MetricsLibratoBatch.DurationConverter durationConverter) {
+        return newBatch(prefix, prefixDelimiter, metrics, rateConverter, durationConverter, false);
+    }
+
+    private MetricsLibratoBatch newBatch(String prefix,
+                                         String prefixDelimiter,
+                                         Set<LibratoReporter.ExpandedMetric> metrics,
+                                         MetricsLibratoBatch.RateConverter rateConverter,
+                                         MetricsLibratoBatch.DurationConverter durationConverter,
+                                         boolean omitComplexGauges) {
         final int postBatchSize = 100;
         final Sanitizer sanitizer = Sanitizer.NO_OP;
         final LibratoReporter.MetricExpansionConfig expansionConfig = new LibratoReporter.MetricExpansionConfig(EnumSet.copyOf(metrics));
@@ -528,6 +626,7 @@ public class MetricsLibratoBatchTest {
                 deltaTracker,
                 rateConverter,
                 durationConverter,
-                sourceRegex);
+                sourceRegex,
+                omitComplexGauges);
     }
 }

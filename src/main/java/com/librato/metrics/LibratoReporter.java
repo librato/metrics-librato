@@ -137,7 +137,8 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
                 deltaTracker,
                 this,
                 this,
-                sourceRegex);
+                sourceRegex,
+                omitComplexGauges);
 
         for (Map.Entry<String, Gauge> entry : gauges.entrySet()) {
             batch.addGauge(entry.getKey(), entry.getValue());
