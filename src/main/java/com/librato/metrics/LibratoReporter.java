@@ -448,7 +448,8 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
                     prefix,
                     prefixDelimiter,
                     sourceRegex,
-                    deleteIdleStats);
+                    deleteIdleStats,
+                    omitComplexGauges);
         }
 
         /**
