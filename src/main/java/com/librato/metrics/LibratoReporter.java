@@ -25,6 +25,7 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
     private final String prefixDelimiter;
     private final Pattern sourceRegex;
     private final boolean deleteIdleStats;
+    private final boolean omitComplexGauges;
     protected final MetricRegistry registry;
     protected final Clock clock;
     protected final MetricExpansionConfig expansionConfig;
@@ -47,7 +48,8 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
                             String prefix,
                             String prefixDelimiter,
                             Pattern sourceRegex,
-                            boolean deleteIdleStats) {
+                            boolean deleteIdleStats,
+                            boolean omitComplexGauges) {
         super(registry, name, filter, rateUnit, durationUnit);
         this.registry = registry;
         this.sanitizer = customSanitizer;
@@ -62,6 +64,7 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         this.sourceRegex = sourceRegex;
         this.deltaTracker = new DeltaTracker(new DeltaMetricSupplier(registry));
         this.deleteIdleStats = deleteIdleStats;
+        this.omitComplexGauges = omitComplexGauges;
     }
 
     public double convertMetricDuration(double duration) {
