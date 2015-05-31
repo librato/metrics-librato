@@ -170,7 +170,10 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
             }
             batch.addTimer(name, timer);
         }
-        batch.post(source, epoch);
+        BatchResult result = batch.post(source, epoch);
+        for (PostResult postResult : result.getFailedPosts()) {
+            LOG.error("Failure posting to Librato: " + postResult);
+        }
     }
 
     private boolean skipMetric(String name, Counting counting) {
