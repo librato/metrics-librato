@@ -30,6 +30,10 @@ public class LibratoReporterTest extends TestCase {
             public Future<Response> post(String userAgent, String payload) throws IOException {
                 return null;
             }
+
+            public void close() throws IOException {
+              // Intentional NOP
+            }
         };
         LibratoReporter reporter = LibratoReporter.builder(registry, "test-username", "test-token", "test-source")
                 .setHttpPoster(poster)

@@ -6,6 +6,7 @@ import com.ning.http.client.AsyncHttpClientConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.io.IOException;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -107,6 +108,17 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
     public void start(long period, TimeUnit unit) {
         LOG.debug("Reporter starting at fixed rate of every {} {}", period, unit);
         super.start(period, unit);
+    }
+
+    @Override
+    public void stop() {
+      // Stop the scheduling of tasks before stoping the http client the tasks use
+      super.stop();
+      try {
+        httpPoster.close();
+      } catch (IOException e) {
+        // Intentional NOP
+      }
     }
 
     @Override
