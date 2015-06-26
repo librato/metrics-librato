@@ -112,7 +112,8 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
 
     @Override
     public void stop() {
-      // Stop the scheduling of tasks before stoping the http client the tasks use
+      // Stop the scheduling of tasks before stopping the http client which the
+      // tasks use
       super.stop();
       try {
         httpPoster.close();
