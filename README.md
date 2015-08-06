@@ -5,12 +5,12 @@ The `LibratoReporter` class runs in the background, publishing metrics from <a h
     <dependency>
         <groupId>com.librato.metrics</groupId>
         <artifactId>metrics-librato</artifactId>
-        <version>4.0.1.10</version>
+        <version>4.0.1.11</version>
     </dependency>
 
 ## Updating from 3.x?
 
-The `metrics-librato:4.x.x.x` release depends on `librato-java:1.x` which includes a fix for an [issue](https://github.com/librato/librato-java/pull/12) 
+The `metrics-librato:4.x.x.x` release depends on `librato-java:1.x` which includes a fix for an [issue](https://github.com/librato/librato-java/pull/12)
 that was causing dashes to be stripped from metric names incorrectly. It is recommended to view the [readme](https://github.com/librato/librato-java#updating-from-01x-)
 for that project before upgrading to understand how some existing metric names might change.
 
@@ -131,7 +131,7 @@ Timers and Histograms end up generating a complex gauge along with any other exp
     LibratoReporter.builder(<username>, <token>, <source>)
       .setOmitComplexGauges(true)
       .build();
-      
+
 Note that in addition to the mean, complex gauges also include the minimum and maximum dimensions, so if you choose to enable this option, you will no longer have access to those summaries for those metrics.
 
 ### Idle Stat Detection
@@ -143,7 +143,7 @@ This is enabled by default, but should you wish to disable this feature, you can
     LibratoReporter.builder(<username>, <token>, <source>)
     	...
     	.setDeleteIdleStats(false)
-    	
+
 
 ## Custom Sources
 
@@ -151,12 +151,12 @@ Sources are globally set for the LibratoReporter as described above. Sometimes t
 sources for certain signals. To do this, supply a sourceRegex to the LibratoReporter builder.
 
 The regular expression must contain one matching group. As `metrics-librato` takes metrics from the registry and
-batches them, it will apply this regular expression (if supplied) to each metric name.  If the regular expression 
+batches them, it will apply this regular expression (if supplied) to each metric name.  If the regular expression
 matches, it will use the first matching group as the source for that metric, and everything after the entire
 expression match will be used as the actual metric name.
 
     builder.setSourceRegex(Pattern.compile("^(.*?)--"))
-    
+
 The above regular expression will take a meter name like "uid:42--api.latency" and report that with a source of
 `uid:42` and a metric name of `api.latency`.
 
