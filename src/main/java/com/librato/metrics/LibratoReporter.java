@@ -127,7 +127,7 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         try {
             super.report();
         } catch (Exception exception) {
-            LOG.error("Error sending report to librato", exception);
+            LOG.warn("Error sending report to librato", exception);
         }
     }
 
@@ -185,7 +185,7 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         }
         BatchResult result = batch.post(source, epoch);
         for (PostResult postResult : result.getFailedPosts()) {
-            LOG.error("Failure posting to Librato: " + postResult);
+            LOG.warn("Failure posting to Librato: " + postResult);
         }
     }
 
