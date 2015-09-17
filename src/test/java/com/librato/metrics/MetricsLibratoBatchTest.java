@@ -2,6 +2,7 @@ package com.librato.metrics;
 
 import com.codahale.metrics.*;
 import org.hamcrest.BaseMatcher;
+import org.hamcrest.CoreMatchers;
 import org.hamcrest.Description;
 import org.junit.Before;
 import org.junit.Test;
@@ -134,7 +135,7 @@ public class MetricsLibratoBatchTest {
 
     @Test
     public void testAddsAPrefixAndDelimiterForAGaugeMeasurement() throws Exception {
-        final MetricsLibratoBatch batch = newBatch("myPrefix", "," , EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        final MetricsLibratoBatch batch = newBatch("myPrefix", ",", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
         batch.addGaugeMeasurement("apples", 1);
         assertThat(batch, HasMeasurement.of("myPrefix,apples"));
     }
@@ -172,6 +173,28 @@ public class MetricsLibratoBatchTest {
         final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
         batch.addGauge("apples", new FakeGauge(Double.NaN));
         assertThat(batch, not(HasMeasurement.of("myPrefix.apples")));
+    }
+
+    @Test
+    public void testDoesNotAddNaNAsATimer() throws Exception {
+        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        Timer timer = mock(Timer.class);
+        Snapshot snapshot = mock(Snapshot.class);
+        when(timer.getSnapshot()).thenReturn(snapshot);
+        when(snapshot.getMedian()).thenReturn(Double.NaN);
+        when(snapshot.get75thPercentile()).thenReturn(Double.NaN);
+        when(snapshot.get95thPercentile()).thenReturn(Double.NaN);
+        when(snapshot.get98thPercentile()).thenReturn(Double.NaN);
+        when(snapshot.get99thPercentile()).thenReturn(Double.NaN);
+        when(snapshot.get999thPercentile()).thenReturn(Double.NaN);
+        when(timer.getMeanRate()).thenReturn(Double.NaN);
+        when(timer.getOneMinuteRate()).thenReturn(Double.NaN);
+        when(timer.getFiveMinuteRate()).thenReturn(Double.NaN);
+        when(timer.getFifteenMinuteRate()).thenReturn(Double.NaN);
+        batch.addTimer("apples", timer);
+        // only the 'count' metric survives because it is a Long not a Double
+        // otherwise it would have about 11 metrics
+        assertThat(batch.measurements.size(), CoreMatchers.equalTo(1));
     }
 
     @Test
@@ -280,7 +303,6 @@ public class MetricsLibratoBatchTest {
         assertThat(batch, HasMeasurement.of("foo.99th", 99d, SingleValueGaugeMeasurement.class));
         assertThat(batch, HasMeasurement.of("foo.999th", 99.9d, SingleValueGaugeMeasurement.class));
     }
-
 
 
     @Test
@@ -455,14 +477,14 @@ public class MetricsLibratoBatchTest {
         }
 
         public boolean matches(Object o) {
-            LibratoBatch batch = (LibratoBatch)o;
+            LibratoBatch batch = (LibratoBatch) o;
             for (Measurement measurement : batch.measurements) {
                 if (measurement instanceof MultiSampleGaugeMeasurement) {
                     MultiSampleGaugeMeasurement multi = (MultiSampleGaugeMeasurement) measurement;
                     if (!multi.getName().equals(name)) {
                         return false;
                     }
-                    final Map<String,Number> map = multi.toMap();
+                    final Map<String, Number> map = multi.toMap();
                     if (!map.get("count").equals(count)) {
                         description = "Count should have been " + count + " but was " + map.get("count");
                         return false;

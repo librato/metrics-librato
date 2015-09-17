@@ -16,7 +16,7 @@ import static com.librato.metrics.LibratoReporter.ExpandedMetric.*;
  * a LibratoBatch that understands Metrics-specific types
  */
 public class MetricsLibratoBatch extends LibratoBatch {
-    private static final Logger LOG = LoggerFactory.getLogger(MetricsLibratoBatch.class);
+    private static final Logger log = LoggerFactory.getLogger(MetricsLibratoBatch.class);
     private final MetricExpansionConfig expansionConfig;
     private final String prefix;
     private final String prefixDelimiter;
@@ -70,7 +70,7 @@ public class MetricsLibratoBatch extends LibratoBatch {
     }
 
     public BatchResult post(String source, long epoch) {
-        LOG.debug("Posting measurements");
+        log.debug("Posting measurements");
         return super.post(source, epoch);
     }
 
@@ -80,8 +80,12 @@ public class MetricsLibratoBatch extends LibratoBatch {
         super.addCounterMeasurement(info.source, addPrefix(info.name), value);
     }
 
+
     @Override
     public void addGaugeMeasurement(String name, Number value) {
+        if (!checkNumber(name, value)) {
+            return;
+        }
         SourceInformation info = SourceInformation.from(sourceRegex, name);
         super.addGaugeMeasurement(info.source, addPrefix(info.name), value);
     }
@@ -92,9 +96,10 @@ public class MetricsLibratoBatch extends LibratoBatch {
         final Object value = gauge.getValue();
         if (value instanceof Number) {
             final Number number = (Number) value;
-            if (isANumber(number)) {
-                addGaugeMeasurement(name, number);
+            if (!checkNumber(name, number)) {
+                return;
             }
+            addGaugeMeasurement(name, number);
         }
     }
 
@@ -138,21 +143,31 @@ public class MetricsLibratoBatch extends LibratoBatch {
             final long count = (long) snapshot.size();
             if (count > 0) {
                 SourceInformation info = SourceInformation.from(sourceRegex, name);
-                addMeasurement(
-                        MultiSampleGaugeMeasurement.builder(addPrefix(info.name))
-                                .setSource(info.source)
-                                .setCount(count)
-                                .setSum(convertDuration(sum, convert))
-                                .setMax(convertDuration(snapshot.getMax(), convert))
-                                .setMin(convertDuration(snapshot.getMin(), convert))
-                                .build());
+                MultiSampleGaugeMeasurement measurement;
+                try {
+                    measurement = MultiSampleGaugeMeasurement.builder(addPrefix(info.name))
+                            .setSource(info.source)
+                            .setCount(count)
+                            .setSum(convertDuration(sum, convert))
+                            .setMax(convertDuration(snapshot.getMax(), convert))
+                            .setMin(convertDuration(snapshot.getMin(), convert))
+                            .build();
+                } catch (IllegalArgumentException e) {
+                    log.warn("Could not create gauge", e);
+                    return;
+                }
+                addMeasurement(measurement);
             }
         }
     }
 
     private void maybeAdd(ExpandedMetric metric, String name, Number reading) {
         if (expansionConfig.isSet(metric)) {
-            addGaugeMeasurement(metric.buildMetricName(name), reading);
+            String metricName = metric.buildMetricName(name);
+            if (!checkNumber(name, reading)) {
+                return;
+            }
+            addGaugeMeasurement(metricName, reading);
         }
     }
 
@@ -168,6 +183,14 @@ public class MetricsLibratoBatch extends LibratoBatch {
             throw new IllegalArgumentException("Prefix may either be null or a non-empty string");
         }
         return prefix;
+    }
+
+    boolean checkNumber(String name, Number value) {
+        if (!isANumber(value)) {
+            log.warn("Cannot add number {} for {}", value, name);
+            return false;
+        }
+        return true;
     }
 
     /**
