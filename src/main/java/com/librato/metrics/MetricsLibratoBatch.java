@@ -187,7 +187,7 @@ public class MetricsLibratoBatch extends LibratoBatch {
 
     boolean checkNumber(String name, Number value) {
         if (!isANumber(value)) {
-            log.warn("Cannot add number {} for {}", value, name);
+            log.debug("Cannot add number {} for {}", value, name);
             return false;
         }
         return true;

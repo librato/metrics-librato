@@ -35,7 +35,7 @@ public class MetricsLibratoBatchTest {
         final MetricsLibratoBatch batch = newBatch(EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
         batch.addSampling("apples", new Sampling() {
             public Snapshot getSnapshot() {
-                return new Snapshot(new long[]{1});
+                return new UniformSnapshot(new long[]{1});
             }
         }, false);
         assertThat(batch, HasMeasurement.of("apples.median"));
@@ -52,7 +52,7 @@ public class MetricsLibratoBatchTest {
         final MetricsLibratoBatch batch = newBatch(EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
         batch.addSampling("farm--apples", new Sampling() {
             public Snapshot getSnapshot() {
-                return new Snapshot(new long[]{1});
+                return new UniformSnapshot(new long[]{1});
             }
         }, false);
         assertThat(batch, HasMeasurement.of("farm", "apples.median"));
@@ -80,7 +80,7 @@ public class MetricsLibratoBatchTest {
         final MetricsLibratoBatch batch = newBatch(EnumSet.of(MEDIAN, PCT_75));
         batch.addSampling("apples", new Sampling() {
             public Snapshot getSnapshot() {
-                return new Snapshot(new long[]{1});
+                return new UniformSnapshot(new long[]{1});
             }
         }, false);
         assertThat(batch, HasMeasurement.of("apples.median"));
@@ -107,7 +107,7 @@ public class MetricsLibratoBatchTest {
         final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.of(MEDIAN, PCT_75));
         batch.addSampling("apples", new Sampling() {
             public Snapshot getSnapshot() {
-                return new Snapshot(new long[]{1});
+                return new UniformSnapshot(new long[]{1});
             }
         }, false);
         assertThat(batch, HasMeasurement.of("myPrefix.apples.median"));
