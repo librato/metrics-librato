@@ -1,12 +1,12 @@
 ## Librato Metrics Plugin for the Metrics Library
 
-The `LibratoReporter` class runs in the background, publishing metrics from <a href="https://github.com/dropwizard/metrics">dropwizard/metrics</a> to the <a href="http://metrics.librato.com">Librato Metrics API</a> at the specified interval.
+The `LibratoReporter` class runs in the background, publishing metrics from <a href="http://metrics.dropwizard.io/">dropwizard/metrics</a> to the <a href="http://metrics.librato.com">Librato Metrics API</a> at the specified interval.
 
-    <dependency>
-        <groupId>com.librato.metrics</groupId>
-        <artifactId>metrics-librato</artifactId>
-        <version>4.0.1.12</version>
-    </dependency>
+	<dependency>
+	  <groupId>com.librato.metrics</groupId>
+	  <artifactId>metrics-librato</artifactId>
+	  <version>4.1.2.0</version>
+	</dependency>
 
 ## Updating from 3.x?
 
