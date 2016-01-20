@@ -37,10 +37,20 @@ public class MetricsLibratoBatch extends LibratoBatch {
     /**
      * a string used to identify the library
      */
-    private static final String AGENT_IDENTIFIER = String.format(
-            "metrics-librato/%s metrics/%s",
-            Versions.getVersion("META-INF/maven/com.codahale.metrics/metrics-core/pom.properties", Metric.class),
-            Versions.getVersion("META-INF/maven/com.librato.metrics/metrics-librato/pom.properties", LibratoReporter.class));
+    public static final String AGENT_IDENTIFIER;
+
+    static {
+        String metricsCoreVersion = Versions.getVersion(
+                "META-INF/maven/io.dropwizard.metrics/metrics-core/pom.properties",
+                Metric.class);
+        String metricsLibratoVersion = Versions.getVersion(
+                "META-INF/maven/com.librato.metrics/metrics-librato/pom.properties",
+                LibratoReporter.class);
+        AGENT_IDENTIFIER = String.format(
+                "metrics-librato/%s metrics/%s",
+                metricsLibratoVersion,
+                metricsCoreVersion);
+    }
 
     /**
      * Public constructor.
