@@ -101,7 +101,7 @@
         <dependency>
             <groupId>com.librato.metrics</groupId>
             <artifactId>librato-java</artifactId>
-            <version>1.0.10</version>
+            <version>1.0.11</version>
             <type>jar</type>
         </dependency>
         <dependency>
