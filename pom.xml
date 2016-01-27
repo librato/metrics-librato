@@ -1,7 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0"
-         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.sonatype.oss</groupId>
@@ -11,7 +9,7 @@
     <groupId>com.librato.metrics</groupId>
     <artifactId>metrics-librato</artifactId>
     <name>Metrics Librato Support</name>
-    <version>4.1.2.4-SNAPSHOT</version>
+    <version>4.1.2.4</version>
     <description>The LibratoReporter class runs in the background, publishing
         metrics to the Librato Metrics API at the
         specified interval.
@@ -31,7 +29,7 @@
         <developerConnection>
             scm:git:git@github.com:librato/metrics-librato.git
         </developerConnection>
-        <tag>HEAD</tag>
+        <tag>metrics-librato-4.1.2.4</tag>
     </scm>
     <properties>
         <dropwizard.metrics.version>3.1.2</dropwizard.metrics.version>
