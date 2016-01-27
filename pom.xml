@@ -1,5 +1,7 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project xmlns="http://maven.apache.org/POM/4.0.0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
+<project xmlns="http://maven.apache.org/POM/4.0.0"
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/xsd/maven-4.0.0.xsd">
     <modelVersion>4.0.0</modelVersion>
     <parent>
         <groupId>org.sonatype.oss</groupId>
@@ -10,7 +12,8 @@
     <artifactId>metrics-librato</artifactId>
     <name>Metrics Librato Support</name>
     <version>4.1.2.4-SNAPSHOT</version>
-    <description>The LibratoReporter class runs in the background, publishing metrics to the Librato Metrics API at the
+    <description>The LibratoReporter class runs in the background, publishing
+        metrics to the Librato Metrics API at the
         specified interval.
     </description>
     <url>https://github.com/librato/metrics-librato</url>
@@ -23,8 +26,11 @@
     </licenses>
     <scm>
         <url>https://github.com/librato/metrics-librato</url>
-        <connection>scm:git:git@github.com:librato/metrics-librato.git</connection>
-        <developerConnection>scm:git:git@github.com:librato/metrics-librato.git</developerConnection>
+        <connection>scm:git:git@github.com:librato/metrics-librato.git
+        </connection>
+        <developerConnection>
+            scm:git:git@github.com:librato/metrics-librato.git
+        </developerConnection>
         <tag>HEAD</tag>
     </scm>
     <properties>
@@ -116,11 +122,6 @@
             <artifactId>junit-dep</artifactId>
             <version>4.10</version>
             <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>com.ning</groupId>
-            <artifactId>async-http-client</artifactId>
-            <version>1.7.4</version>
         </dependency>
         <dependency>
             <groupId>org.slf4j</groupId>
