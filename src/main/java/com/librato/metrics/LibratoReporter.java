@@ -2,7 +2,6 @@ package com.librato.metrics;
 
 import com.codahale.metrics.*;
 import com.codahale.metrics.Timer;
-import com.ning.http.client.AsyncHttpClientConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -112,14 +111,14 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
 
     @Override
     public void stop() {
-      // Stop the scheduling of tasks before stopping the http client which the
-      // tasks use
-      super.stop();
-      try {
-        httpPoster.close();
-      } catch (IOException e) {
-        // Intentional NOP
-      }
+        // Stop the scheduling of tasks before stopping the http client which the
+        // tasks use
+        super.stop();
+        try {
+            httpPoster.close();
+        } catch (IOException e) {
+            // Intentional NOP
+        }
     }
 
     @Override
@@ -219,7 +218,6 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         private String prefix;
         private String prefixDelimiter = ".";
         private Pattern sourceRegex;
-        private AsyncHttpClientConfig httpClientConfig;
         private boolean deleteIdleStats = true;
         private boolean omitComplexGauges;
 
@@ -233,6 +231,7 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         /**
          * Sets whether or not complex gauges (includes mean, min, max) should be sent to Librato. Only
          * applies to Timers and Histograms.
+         *
          * @param omitComplexGauges if the complex gauges should be elided
          * @return itself
          */
@@ -243,6 +242,7 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
 
         /**
          * Sets whether or not idle timers, meters, and histograms will be send to Librato or not.
+         *
          * @param deleteIdleStats true if idle metrics should be elided
          * @return itself
          */
@@ -431,18 +431,6 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         }
 
         /**
-         * Set the http config used to post metrics.
-         *
-         * @param httpClientConfig the configuration.
-         * @return itself.
-         */
-        @SuppressWarnings("unused")
-        public Builder setHttpClientConfig(AsyncHttpClientConfig httpClientConfig) {
-            this.httpClientConfig = httpClientConfig;
-            return this;
-        }
-
-        /**
          * Build the LibratoReporter as configured by this Builder
          *
          * @return a fully configured LibratoReporter
@@ -475,11 +463,7 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
         private void constructHttpPoster() {
             if (this.httpPoster == null) {
                 String url = "https://metrics-api.librato.com/v1/metrics";
-                if (httpClientConfig == null) {
-                    this.httpPoster = NingHttpPoster.newPoster(username, token, url);
-                } else {
-                    this.httpPoster = NingHttpPoster.newPoster(username, token, url, httpClientConfig);
-                }
+                this.httpPoster = new DefaultHttpPoster(url, username, token);
             }
         }
     }
