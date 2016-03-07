@@ -48,9 +48,6 @@ public class DeltaTracker {
      */
     public Long peekDelta(String name, long count) {
         Long previous = lookup.get(name);
-        if (previous == null) {
-            previous = 0L;
-        }
         return calculateDelta(name, previous, count);
     }
 
@@ -64,17 +61,15 @@ public class DeltaTracker {
      */
     public Long getDelta(String name, long count) {
         Long previous = lookup.put(name, count);
-        if (previous == null) {
-            // this is the first time we have seen this count
-            previous = 0L;
-        }
         return calculateDelta(name, previous, count);
     }
 
     private Long calculateDelta(String name, Long previous, long count) {
-        if (count < previous) {
-            LOG.error("Saw a non-monotonically increasing value for metric {}", name);
-            return 0L;
+        if (previous == null) {
+            previous = 0L;
+        } else if (count < previous) {
+            LOG.debug("Saw a non-monotonically increasing value for metric {}", name);
+            previous = 0L;
         }
         return count - previous;
     }
