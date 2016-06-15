@@ -106,6 +106,8 @@ Given a Coda Timer with name `foo`, the following values are reported:
 * Gauge: name=foo.5MinuteRate
 * Gauge: name=foo.15MinuteRate
 
+The default unit for timers is *milliseconds*, see below how to change that.
+
 _Note that Coda Timer percentiles are determined using configurable <a href="https://dropwizard.github.io/metrics/3.1.0/manual/core/#histograms">Reservoir Sampling</a>. Coda Timers by default use an exponentially decaying reservoir to prioritize newer data._
 
 ## Reducing The Volume Of Metrics Reported
@@ -159,6 +161,17 @@ expression match will be used as the actual metric name.
 
 The above regular expression will take a meter name like "uid:42--api.latency" and report that with a source of
 `uid:42` and a metric name of `api.latency`.
+
+## Custom Timer Units
+
+The default time unit that timers are converted to is
+*milliseconds*. If you would like to change that you can call
+`setDurationUnit`:
+
+    LibratoReporter.builder(<username>, <token>, <source>)
+    	...
+    	.setDurationUnit(TimeUnit.NANOSECONDS)
+
 
 ## Using Dropwizard?
 
