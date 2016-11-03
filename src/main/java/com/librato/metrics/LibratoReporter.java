@@ -13,7 +13,7 @@ import java.util.regex.Pattern;
 /**
  * A reporter for publishing metrics to <a href="http://metrics.librato.com/">Librato Metrics</a>
  */
-public class LibratoReporter extends ScheduledReporter implements MetricsLibratoBatch.RateConverter, MetricsLibratoBatch.DurationConverter {
+public class LibratoReporter extends ScheduledReporter implements RateConverter, DurationConverter {
     private static final Logger LOG = LoggerFactory.getLogger(LibratoReporter.class);
     private final DeltaTracker deltaTracker;
     private final String source;
@@ -73,28 +73,6 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
 
     public double convertMetricRate(double rate) {
         return convertRate(rate);
-    }
-
-    /**
-     * Used to supply metrics to the delta tracker on initialization. Uses the metric name conversion
-     * to ensure that the correct names are supplied for the metric.
-     */
-    class DeltaMetricSupplier implements DeltaTracker.MetricSupplier {
-        final MetricRegistry registry;
-
-        DeltaMetricSupplier(MetricRegistry registry) {
-            this.registry = registry;
-        }
-
-        public Map<String, Metric> getMetrics() {
-            final Map<String, Metric> map = new HashMap<String, Metric>();
-            for (Map.Entry<String, Metric> entry : registry.getMetrics().entrySet()) {
-                // todo: ensure the name here is what we expect
-                final String name = entry.getKey();
-                map.put(name, entry.getValue());
-            }
-            return map;
-        }
     }
 
     /**
@@ -473,51 +451,6 @@ public class LibratoReporter extends ScheduledReporter implements MetricsLibrato
      */
     public static Builder builder(MetricRegistry metricRegistry, String username, String token, String source) {
         return new Builder(metricRegistry, username, token, source);
-    }
-
-    public static enum ExpandedMetric {
-        // sampling
-        MEDIAN("median"),
-        PCT_75("75th"),
-        PCT_95("95th"),
-        PCT_98("98th"),
-        PCT_99("99th"),
-        PCT_999("999th"),
-        // metered
-        COUNT("count"),
-        RATE_MEAN("meanRate"),
-        RATE_1_MINUTE("1MinuteRate"),
-        RATE_5_MINUTE("5MinuteRate"),
-        RATE_15_MINUTE("15MinuteRate");
-
-        private final String displayName;
-
-        public String buildMetricName(String metric) {
-            return metric + "." + displayName;
-        }
-
-        private ExpandedMetric(String displayName) {
-            this.displayName = displayName;
-        }
-    }
-
-    /**
-     * Configures how to report "expanded" metrics derived from meters and histograms (e.g. percentiles,
-     * rates, etc). Default is to report everything.
-     *
-     * @see ExpandedMetric
-     */
-    public static class MetricExpansionConfig {
-        public static MetricExpansionConfig ALL = new MetricExpansionConfig(EnumSet.allOf(ExpandedMetric.class));
-        private final Set<ExpandedMetric> enabled;
-
-        public MetricExpansionConfig(Set<ExpandedMetric> enabled) {
-            this.enabled = EnumSet.copyOf(enabled);
-        }
-
-        public boolean isSet(ExpandedMetric metric) {
-            return enabled.contains(metric);
-        }
     }
 
     /**

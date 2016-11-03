@@ -1,15 +1,13 @@
 package com.librato.metrics;
 
 import com.codahale.metrics.*;
-import com.librato.metrics.LibratoReporter.ExpandedMetric;
-import com.librato.metrics.LibratoReporter.MetricExpansionConfig;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
-import static com.librato.metrics.LibratoReporter.ExpandedMetric.*;
+import static com.librato.metrics.ExpandedMetric.*;
 
 
 /**
@@ -25,14 +23,6 @@ public class MetricsLibratoBatch extends LibratoBatch {
     private final RateConverter rateConverter;
     private final Pattern sourceRegex;
     private final boolean omitComplexGauges;
-
-    public static interface RateConverter {
-        double convertMetricRate(double rate);
-    }
-
-    public static interface DurationConverter {
-        double convertMetricDuration(double duration);
-    }
 
     /**
      * a string used to identify the library

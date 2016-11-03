@@ -1,7 +1,6 @@
 package com.librato.metrics;
 
 import com.codahale.metrics.*;
-import com.librato.metrics.LibratoReporter.MetricExpansionConfig;
 
 import java.io.File;
 import java.util.ArrayList;

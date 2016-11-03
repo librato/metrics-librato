@@ -14,7 +14,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
-import static com.librato.metrics.LibratoReporter.ExpandedMetric.*;
+import static com.librato.metrics.ExpandedMetric.*;
 import static org.hamcrest.CoreMatchers.not;
 import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
@@ -32,7 +32,7 @@ public class MetricsLibratoBatchTest {
 
     @Test
     public void testSamplingWithAll() throws Exception {
-        final MetricsLibratoBatch batch = newBatch(EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        final MetricsLibratoBatch batch = newBatch(EnumSet.allOf(ExpandedMetric.class));
         batch.addSampling("apples", new Sampling() {
             public Snapshot getSnapshot() {
                 return new UniformSnapshot(new long[]{1});
@@ -49,7 +49,7 @@ public class MetricsLibratoBatchTest {
 
     @Test
     public void testSamplingWithCustomSource() throws Exception {
-        final MetricsLibratoBatch batch = newBatch(EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        final MetricsLibratoBatch batch = newBatch(EnumSet.allOf(ExpandedMetric.class));
         batch.addSampling("farm--apples", new Sampling() {
             public Snapshot getSnapshot() {
                 return new UniformSnapshot(new long[]{1});
@@ -66,7 +66,7 @@ public class MetricsLibratoBatchTest {
 
     @Test
     public void testMeteredWithAll() throws Exception {
-        final MetricsLibratoBatch batch = newBatch(EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        final MetricsLibratoBatch batch = newBatch(EnumSet.allOf(ExpandedMetric.class));
         batch.addMeter("oranges", new FakeMetered());
         assertThat(batch, HasMeasurement.of("oranges.count"));
         assertThat(batch, HasMeasurement.of("oranges.meanRate"));
@@ -120,7 +120,7 @@ public class MetricsLibratoBatchTest {
 
     @Test
     public void testAddsPrefixForACounterMeasurement() throws Exception {
-        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(ExpandedMetric.class));
         batch.addCounterMeasurement("apples", 1L);
         batch.addCounterMeasurement("apples", 1L); // call it twice because of counter->gauge conversion
         assertThat(batch, HasMeasurement.of("myPrefix.apples"));
@@ -128,56 +128,56 @@ public class MetricsLibratoBatchTest {
 
     @Test
     public void testReportsCountersAsCounters() throws Exception {
-        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(ExpandedMetric.class));
         batch.addCounterMeasurement("apples", 1L);
         assertThat(batch, HasMeasurement.of("myPrefix.apples", 1L, CounterMeasurement.class));
     }
 
     @Test
     public void testAddsAPrefixAndDelimiterForAGaugeMeasurement() throws Exception {
-        final MetricsLibratoBatch batch = newBatch("myPrefix", ",", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        final MetricsLibratoBatch batch = newBatch("myPrefix", ",", EnumSet.allOf(ExpandedMetric.class));
         batch.addGaugeMeasurement("apples", 1);
         assertThat(batch, HasMeasurement.of("myPrefix,apples"));
     }
 
     @Test
     public void testAddsAPrefixForAGaugeMeasurement() throws Exception {
-        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(ExpandedMetric.class));
         batch.addGaugeMeasurement("apples", 1);
         assertThat(batch, HasMeasurement.of("myPrefix.apples"));
     }
 
     @Test
     public void testAddsAPrefixForACounterMeasurement() throws Exception {
-        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(ExpandedMetric.class));
         batch.addCounterMeasurement("apples", 1L);
         assertThat(batch, HasMeasurement.of("myPrefix.apples"));
     }
 
     @Test
     public void testAddsAPrefixForAGauge() throws Exception {
-        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(ExpandedMetric.class));
         batch.addGauge("apples", new FakeGauge(1));
         assertThat(batch, HasMeasurement.of("myPrefix.apples"));
     }
 
     @Test
     public void testDoesNotAddInfinityAsAGauge() throws Exception {
-        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(ExpandedMetric.class));
         batch.addGauge("apples", new FakeGauge(Double.POSITIVE_INFINITY));
         assertThat(batch, not(HasMeasurement.of("myPrefix.apples")));
     }
 
     @Test
     public void testDoesNotAddNaNAsAGauge() throws Exception {
-        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(ExpandedMetric.class));
         batch.addGauge("apples", new FakeGauge(Double.NaN));
         assertThat(batch, not(HasMeasurement.of("myPrefix.apples")));
     }
 
     @Test
     public void testDoesNotAddNaNAsATimer() throws Exception {
-        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        final MetricsLibratoBatch batch = newBatch("myPrefix", EnumSet.allOf(ExpandedMetric.class));
         Timer timer = mock(Timer.class);
         Snapshot snapshot = mock(Snapshot.class);
         when(timer.getSnapshot()).thenReturn(snapshot);
@@ -271,7 +271,7 @@ public class MetricsLibratoBatchTest {
 
     @Test
     public void testHistogramExcludesComplexGaugeIfOptionSet() throws Exception {
-        final MetricsLibratoBatch batch = newBatch(null, ".", EnumSet.allOf(LibratoReporter.ExpandedMetric.class), identityRateConverter, identityDurationConverter, true);
+        final MetricsLibratoBatch batch = newBatch(null, ".", EnumSet.allOf(ExpandedMetric.class), identityRateConverter, identityDurationConverter, true);
         final Histogram histogram = mock(Histogram.class);
         final Snapshot snapshot = mock(Snapshot.class);
         when(histogram.getSnapshot()).thenReturn(snapshot);
@@ -320,7 +320,7 @@ public class MetricsLibratoBatchTest {
 
     @Test
     public void testMeterWithRateConversion() throws Exception {
-        final MetricsLibratoBatch batch = this.newBatch(new MetricsLibratoBatch.RateConverter() {
+        final MetricsLibratoBatch batch = this.newBatch(new RateConverter() {
             public double convertMetricRate(double rate) {
                 return rate * 2;
             }
@@ -337,7 +337,7 @@ public class MetricsLibratoBatchTest {
 
     @Test
     public void testTimer() throws Exception {
-        final MetricsLibratoBatch batch = newBatch(new MetricsLibratoBatch.DurationConverter() {
+        final MetricsLibratoBatch batch = newBatch(new DurationConverter() {
             public double convertMetricDuration(double duration) {
                 return duration * 2;
             }
@@ -388,9 +388,9 @@ public class MetricsLibratoBatchTest {
         final boolean omitComplexGauges = true;
         MetricsLibratoBatch batch = newBatch(null,
                 ".",
-                EnumSet.allOf(LibratoReporter.ExpandedMetric.class),
+                EnumSet.allOf(ExpandedMetric.class),
                 identityRateConverter,
-                new MetricsLibratoBatch.DurationConverter() {
+                new DurationConverter() {
                     public double convertMetricDuration(double duration) {
                         return duration * 2;
                     }
@@ -457,7 +457,7 @@ public class MetricsLibratoBatchTest {
 
     @Test(expected = IllegalArgumentException.class)
     public void testDoesNotAcceptEmptyStringPrefix() throws Exception {
-        newBatch("", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        newBatch("", EnumSet.allOf(ExpandedMetric.class));
     }
 
     static class HasMultiSampleGaugeMeasurement extends BaseMatcher<LibratoBatch> {
@@ -578,63 +578,63 @@ public class MetricsLibratoBatchTest {
         }
     }
 
-    private MetricsLibratoBatch newBatch(String prefix, EnumSet<LibratoReporter.ExpandedMetric> metrics) {
+    private MetricsLibratoBatch newBatch(String prefix, EnumSet<ExpandedMetric> metrics) {
         return newBatch(prefix, ".", metrics);
     }
 
     private MetricsLibratoBatch newBatch() {
-        return newBatch(null, ".", EnumSet.allOf(LibratoReporter.ExpandedMetric.class));
+        return newBatch(null, ".", EnumSet.allOf(ExpandedMetric.class));
     }
 
-    private MetricsLibratoBatch newBatch(MetricsLibratoBatch.RateConverter rateConverter) {
-        return newBatch(null, ".", EnumSet.allOf(LibratoReporter.ExpandedMetric.class), rateConverter, identityDurationConverter);
+    private MetricsLibratoBatch newBatch(RateConverter rateConverter) {
+        return newBatch(null, ".", EnumSet.allOf(ExpandedMetric.class), rateConverter, identityDurationConverter);
     }
 
-    private MetricsLibratoBatch newBatch(MetricsLibratoBatch.DurationConverter durationConverter) {
-        return newBatch(null, ".", EnumSet.allOf(LibratoReporter.ExpandedMetric.class), identityRateConverter, durationConverter);
+    private MetricsLibratoBatch newBatch(DurationConverter durationConverter) {
+        return newBatch(null, ".", EnumSet.allOf(ExpandedMetric.class), identityRateConverter, durationConverter);
     }
 
-    private MetricsLibratoBatch newBatch(Set<LibratoReporter.ExpandedMetric> metrics) {
+    private MetricsLibratoBatch newBatch(Set<ExpandedMetric> metrics) {
         return newBatch(null, ".", metrics);
     }
 
-    private MetricsLibratoBatch newBatch(String prefix, Set<LibratoReporter.ExpandedMetric> metrics) {
+    private MetricsLibratoBatch newBatch(String prefix, Set<ExpandedMetric> metrics) {
         return newBatch(prefix, ".", metrics);
     }
 
-    static MetricsLibratoBatch.RateConverter identityRateConverter = new MetricsLibratoBatch.RateConverter() {
+    static RateConverter identityRateConverter = new RateConverter() {
         public double convertMetricRate(double rate) {
             return rate;
         }
     };
 
-    static MetricsLibratoBatch.DurationConverter identityDurationConverter = new MetricsLibratoBatch.DurationConverter() {
+    static DurationConverter identityDurationConverter = new DurationConverter() {
         public double convertMetricDuration(double duration) {
             return duration;
         }
     };
 
-    private MetricsLibratoBatch newBatch(String prefix, String prefixDelimiter, Set<LibratoReporter.ExpandedMetric> metrics) {
+    private MetricsLibratoBatch newBatch(String prefix, String prefixDelimiter, Set<ExpandedMetric> metrics) {
         return newBatch(prefix, prefixDelimiter, metrics, identityRateConverter, identityDurationConverter);
     }
 
     private MetricsLibratoBatch newBatch(String prefix,
                                          String prefixDelimiter,
-                                         Set<LibratoReporter.ExpandedMetric> metrics,
-                                         MetricsLibratoBatch.RateConverter rateConverter,
-                                         MetricsLibratoBatch.DurationConverter durationConverter) {
+                                         Set<ExpandedMetric> metrics,
+                                         RateConverter rateConverter,
+                                         DurationConverter durationConverter) {
         return newBatch(prefix, prefixDelimiter, metrics, rateConverter, durationConverter, false);
     }
 
     private MetricsLibratoBatch newBatch(String prefix,
                                          String prefixDelimiter,
-                                         Set<LibratoReporter.ExpandedMetric> metrics,
-                                         MetricsLibratoBatch.RateConverter rateConverter,
-                                         MetricsLibratoBatch.DurationConverter durationConverter,
+                                         Set<ExpandedMetric> metrics,
+                                         RateConverter rateConverter,
+                                         DurationConverter durationConverter,
                                          boolean omitComplexGauges) {
         final int postBatchSize = 100;
         final Sanitizer sanitizer = Sanitizer.NO_OP;
-        final LibratoReporter.MetricExpansionConfig expansionConfig = new LibratoReporter.MetricExpansionConfig(EnumSet.copyOf(metrics));
+        final MetricExpansionConfig expansionConfig = new MetricExpansionConfig(EnumSet.copyOf(metrics));
         final Pattern sourceRegex = Pattern.compile("^(.*?)--");
         return new MetricsLibratoBatch(
                 postBatchSize,
