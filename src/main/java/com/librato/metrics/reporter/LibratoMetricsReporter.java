@@ -2,10 +2,8 @@ package com.librato.metrics.reporter;
 
 import com.codahale.metrics.*;
 import com.librato.metrics.*;
-import com.librato.metrics.client.GaugeMeasure;
-import com.librato.metrics.client.LibratoClient;
-import com.librato.metrics.client.LibratoClientBuilder;
-import com.librato.metrics.client.Measures;
+import com.librato.metrics.client.*;
+import com.librato.metrics.client.PostResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -71,7 +69,17 @@ public class LibratoMetricsReporter extends ScheduledReporter {
         addHistograms(measures, histograms);
         addMeters(measures, meters);
         addTimers(measures, timers);
-        client.postMeasures(measures); // todo: async?
+        // todo: async?
+        try {
+            PostMeasuresResult postResults = client.postMeasures(measures);
+            for (PostResult result : postResults.results) {
+                if (result.isError()) {
+                    log.error("Failure to post to librato: " + result.toString());
+                }
+            }
+        } catch (Exception e) {
+            log.error("Failure to post to Librato", e);
+        }
     }
 
     private void addGauges(Measures measures, SortedMap<String, Gauge> gauges) {
