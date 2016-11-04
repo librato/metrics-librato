@@ -68,7 +68,6 @@ public class LibratoMetricsReporter extends ScheduledReporter {
         addHistograms(measures, histograms);
         addMeters(measures, meters);
         addTimers(measures, timers);
-        // todo: async?
         try {
             PostMeasuresResult postResults = client.postMeasures(measures);
             for (PostResult result : postResults.results) {
