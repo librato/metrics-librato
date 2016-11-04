@@ -200,7 +200,7 @@ public class LibratoMetricsReporter extends ScheduledReporter {
                 return;
             }
             SourceInformation info = SourceInformation.from(sourceRegex, metricName);
-            addGauge(measures, addPrefix(metricName), reading, info.source);
+            addGauge(measures, addPrefix(info.name), reading, info.source);
         }
     }
 
