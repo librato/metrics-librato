@@ -7,6 +7,7 @@ import com.librato.metrics.client.PostResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.LinkedList;
 import java.util.List;
 import java.util.SortedMap;
 import java.util.regex.Pattern;
@@ -56,7 +57,7 @@ public class LibratoMetricsReporter extends ScheduledReporter {
         this.deleteIdleStats = atts.deleteIdleStats;
         this.omitComplexGauges = atts.omitComplexGauges;
         this.source = atts.source;
-        this.tags = atts.tags;
+        this.tags = sanitize(atts.tags);
         this.enableSD = atts.enableSD;
         this.enableMD = atts.enableMD;
     }
@@ -148,7 +149,6 @@ public class LibratoMetricsReporter extends ScheduledReporter {
         maybeAdd(measures, RATE_15_MINUTE, metricName, convertRate(meter.getFifteenMinuteRate()));
     }
 
-
     private void addSampling(Measures measures, String name, Sampling sampling, boolean convert) {
         final Snapshot snapshot = sampling.getSnapshot();
         maybeAdd(measures, MEDIAN, name, convertDuration(snapshot.getMedian(), convert));
@@ -180,6 +180,7 @@ public class LibratoMetricsReporter extends ScheduledReporter {
         }
     }
 
+
     private void addGauge(Measures measures, String metricName, Number number, String source) {
         GaugeMeasure gauge = new GaugeMeasure(metricName, number.doubleValue()).setSource(source);
         addGauge(measures, gauge);
@@ -193,6 +194,10 @@ public class LibratoMetricsReporter extends ScheduledReporter {
             TaggedMeasure taggedMeasure = new TaggedMeasure(gauge);
             for (Tag tag : tags) {
                 taggedMeasure.addTag(tag);
+            }
+            String source = gauge.getSource();
+            if (source != null) {
+                taggedMeasure.addTag(sanitize(new Tag("source", source)));
             }
             measures.add(taggedMeasure);
         }
@@ -233,6 +238,18 @@ public class LibratoMetricsReporter extends ScheduledReporter {
 
     private double convertDuration(double duration, boolean convert) {
         return convert ? convertDuration(duration) : duration;
+    }
+
+    private List<Tag> sanitize(List<Tag> tags) {
+        List<Tag> result = new LinkedList<Tag>();
+        for (Tag tag : tags) {
+            result.add(sanitize(tag));
+        }
+        return result;
+    }
+
+    private Tag sanitize(Tag tag) {
+        return new Tag(Sanitizer.LAST_PASS.apply(tag.name), Sanitizer.LAST_PASS.apply(tag.value));
     }
 
 }
