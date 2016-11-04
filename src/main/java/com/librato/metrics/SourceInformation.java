@@ -16,6 +16,7 @@ public class SourceInformation {
      * If the pattern is not null, it will attempt to match against the supplied name to pull out the source.
      */
     public static SourceInformation from(Pattern sourceRegex, String name) {
+        log.info("from {} {}", sourceRegex, name);
         if (sourceRegex == null) {
             return new SourceInformation(null, name);
         }
