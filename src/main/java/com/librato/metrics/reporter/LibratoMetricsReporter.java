@@ -43,13 +43,7 @@ public class LibratoMetricsReporter extends ScheduledReporter {
                 atts.metricFilter,
                 atts.rateUnit,
                 atts.durationUnit);
-        LibratoClientBuilder builder = LibratoClient.builder(atts.email, atts.token)
-                .setURI(atts.url)
-                .setAgentIdentifier(Agent.AGENT_IDENTIFIER);
-        if (atts.readTimeout != null) {
-            builder.setReadTimeout(atts.readTimeout);
-        }
-        this.client = builder.build();
+        this.client = atts.libratoClientFactory.build(atts);
         this.deltaTracker = new DeltaTracker(new DeltaMetricSupplier(atts.registry));
         this.sourceRegex = atts.sourceRegex;
         this.prefix = checkPrefix(atts.prefix);

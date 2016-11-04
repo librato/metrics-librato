@@ -14,7 +14,7 @@ public class ReporterAttributes {
     MetricFilter metricFilter = MetricFilter.ALL;
     TimeUnit rateUnit = TimeUnit.SECONDS;
     TimeUnit durationUnit = TimeUnit.MILLISECONDS;
-    MetricRegistry registry;
+    MetricRegistry registry = new MetricRegistry();
     String email;
     String token;
     Pattern sourceRegex;
@@ -25,5 +25,6 @@ public class ReporterAttributes {
     boolean omitComplexGauges;
     Duration readTimeout;
     String source;
+    ILibratoClientFactory libratoClientFactory = new DefaultLibratoClientFactory();
 
 }
