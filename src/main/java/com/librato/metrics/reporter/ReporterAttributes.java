@@ -6,7 +6,7 @@ import com.librato.metrics.MetricExpansionConfig;
 import com.librato.metrics.client.Duration;
 import com.librato.metrics.client.Tag;
 
-import java.util.Collections;
+import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -28,7 +28,7 @@ public class ReporterAttributes {
     boolean omitComplexGauges;
     Duration readTimeout;
     String source;
-    List<Tag> tags = Collections.emptyList();
+    List<Tag> tags = new LinkedList<Tag>();
     ILibratoClientFactory libratoClientFactory = new DefaultLibratoClientFactory();
     boolean enableSD = true;
     boolean enableMD;
