@@ -7,6 +7,7 @@ import com.librato.metrics.client.PostResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.util.List;
 import java.util.SortedMap;
 import java.util.regex.Pattern;
 
@@ -26,6 +27,7 @@ public class LibratoMetricsReporter extends ScheduledReporter {
     private final boolean deleteIdleStats;
     private final boolean omitComplexGauges;
     private final String source;
+    private final List<Tag> tags;
 
 
     public static ReporterBuilder builder(MetricRegistry registry,
@@ -52,6 +54,7 @@ public class LibratoMetricsReporter extends ScheduledReporter {
         this.deleteIdleStats = atts.deleteIdleStats;
         this.omitComplexGauges = atts.omitComplexGauges;
         this.source = atts.source;
+        this.tags = atts.tags;
     }
 
     public void report(SortedMap<String, Gauge> gauges,
@@ -59,7 +62,7 @@ public class LibratoMetricsReporter extends ScheduledReporter {
                        SortedMap<String, Histogram> histograms,
                        SortedMap<String, Meter> meters,
                        SortedMap<String, Timer> timers) {
-        Measures measures = new Measures(source, System.currentTimeMillis() / 1000);
+        Measures measures = new Measures(source, tags, System.currentTimeMillis() / 1000);
         addGauges(measures, gauges);
         addCounters(measures, counters);
         addHistograms(measures, histograms);

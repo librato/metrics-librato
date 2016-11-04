@@ -4,6 +4,7 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.librato.metrics.MetricExpansionConfig;
 import com.librato.metrics.client.Duration;
+import com.librato.metrics.client.Tag;
 
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -83,6 +84,11 @@ public class ReporterBuilder {
 
     public ReporterBuilder setSource(String source) {
         this.atts.source = source;
+        return this;
+    }
+
+    public ReporterBuilder addTag(String name, String value) {
+        this.atts.tags.add(new Tag(name, value));
         return this;
     }
 }
