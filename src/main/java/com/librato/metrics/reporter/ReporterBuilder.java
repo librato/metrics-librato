@@ -80,4 +80,9 @@ public class ReporterBuilder {
         this.atts.readTimeout = new Duration(time, unit);
         return this;
     }
+
+    public ReporterBuilder setSource(String source) {
+        this.atts.source = source;
+        return this;
+    }
 }

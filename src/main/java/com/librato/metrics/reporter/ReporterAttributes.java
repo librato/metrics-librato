@@ -24,5 +24,6 @@ public class ReporterAttributes {
     boolean deleteIdleStats = true;
     boolean omitComplexGauges;
     Duration readTimeout;
+    String source;
 
 }

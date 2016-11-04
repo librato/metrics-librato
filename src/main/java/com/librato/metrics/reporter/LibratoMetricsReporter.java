@@ -25,6 +25,7 @@ public class LibratoMetricsReporter extends ScheduledReporter {
     private final MetricExpansionConfig expansionConfig;
     private final boolean deleteIdleStats;
     private final boolean omitComplexGauges;
+    private final String source;
 
 
     public static ReporterBuilder builder(MetricRegistry registry,
@@ -56,6 +57,7 @@ public class LibratoMetricsReporter extends ScheduledReporter {
         this.expansionConfig = atts.expansionConfig;
         this.deleteIdleStats = atts.deleteIdleStats;
         this.omitComplexGauges = atts.omitComplexGauges;
+        this.source = atts.source;
     }
 
     public void report(SortedMap<String, Gauge> gauges,
@@ -63,7 +65,7 @@ public class LibratoMetricsReporter extends ScheduledReporter {
                        SortedMap<String, Histogram> histograms,
                        SortedMap<String, Meter> meters,
                        SortedMap<String, Timer> timers) {
-        Measures measures = new Measures();
+        Measures measures = new Measures(source, System.currentTimeMillis() / 1000);
         addGauges(measures, gauges);
         addCounters(measures, counters);
         addHistograms(measures, histograms);
