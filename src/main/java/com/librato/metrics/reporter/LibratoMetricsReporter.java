@@ -28,6 +28,8 @@ public class LibratoMetricsReporter extends ScheduledReporter {
     private final boolean omitComplexGauges;
     private final String source;
     private final List<Tag> tags;
+    private final boolean enableSD;
+    private final boolean enableMD;
 
 
     public static ReporterBuilder builder(MetricRegistry registry,
@@ -55,6 +57,8 @@ public class LibratoMetricsReporter extends ScheduledReporter {
         this.omitComplexGauges = atts.omitComplexGauges;
         this.source = atts.source;
         this.tags = atts.tags;
+        this.enableSD = atts.enableSD;
+        this.enableMD = atts.enableMD;
     }
 
     public void report(SortedMap<String, Gauge> gauges,
@@ -171,14 +175,27 @@ public class LibratoMetricsReporter extends ScheduledReporter {
                     log.warn("Could not create gauge", e);
                     return;
                 }
-                measures.add(gauge);
+                addGauge(measures, gauge);
             }
         }
     }
 
     private void addGauge(Measures measures, String metricName, Number number, String source) {
-        measures.add(new GaugeMeasure(metricName, number.doubleValue())
-                .setSource(source));
+        GaugeMeasure gauge = new GaugeMeasure(metricName, number.doubleValue()).setSource(source);
+        addGauge(measures, gauge);
+    }
+
+    private void addGauge(Measures measures, GaugeMeasure gauge) {
+        if (this.enableSD) {
+            measures.add(gauge);
+        }
+        if (this.enableMD) {
+            TaggedMeasure taggedMeasure = new TaggedMeasure(gauge);
+            for (Tag tag : tags) {
+                taggedMeasure.addTag(tag);
+            }
+            measures.add(taggedMeasure);
+        }
     }
 
     private String addPrefix(String metricName) {

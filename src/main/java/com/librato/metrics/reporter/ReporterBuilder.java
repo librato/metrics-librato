@@ -91,4 +91,14 @@ public class ReporterBuilder {
         this.atts.tags.add(new Tag(name, value));
         return this;
     }
+
+    public ReporterBuilder setEnableSD(boolean value) {
+        this.atts.enableSD = value;
+        return this;
+    }
+
+    public ReporterBuilder setEnableMD(boolean value) {
+        this.atts.enableMD = value;
+        return this;
+    }
 }
