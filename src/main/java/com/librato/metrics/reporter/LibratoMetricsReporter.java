@@ -74,7 +74,7 @@ public class LibratoMetricsReporter extends ScheduledReporter {
             PostMeasuresResult postResults = client.postMeasures(measures);
             for (PostResult result : postResults.results) {
                 if (result.isError()) {
-                    log.error("Failure to post to librato: " + result.toString());
+                    log.error("Failure to post to Librato: " + result.toString());
                 }
             }
         } catch (Exception e) {
