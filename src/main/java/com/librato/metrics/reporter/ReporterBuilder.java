@@ -92,7 +92,7 @@ public class ReporterBuilder {
         return this;
     }
 
-    public ReporterBuilder setEnableLegay(boolean value) {
+    public ReporterBuilder setEnableLegacy(boolean value) {
         this.atts.enableLegacy = value;
         return this;
     }
