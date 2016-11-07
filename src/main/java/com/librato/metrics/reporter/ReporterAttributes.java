@@ -30,6 +30,6 @@ public class ReporterAttributes {
     String source;
     List<Tag> tags = new LinkedList<Tag>();
     ILibratoClientFactory libratoClientFactory = new DefaultLibratoClientFactory();
-    boolean enableSD = true;
-    boolean enableMD;
+    boolean enableLegacy = true;
+    boolean enableTagging;
 }

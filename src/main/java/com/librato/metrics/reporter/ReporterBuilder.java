@@ -92,13 +92,13 @@ public class ReporterBuilder {
         return this;
     }
 
-    public ReporterBuilder setEnableSD(boolean value) {
-        this.atts.enableSD = value;
+    public ReporterBuilder setEnableLegay(boolean value) {
+        this.atts.enableLegacy = value;
         return this;
     }
 
-    public ReporterBuilder setEnableMD(boolean value) {
-        this.atts.enableMD = value;
+    public ReporterBuilder setEnableTagging(boolean value) {
+        this.atts.enableTagging = value;
         return this;
     }
 }

@@ -29,8 +29,8 @@ public class LibratoMetricsReporter extends ScheduledReporter {
     private final boolean omitComplexGauges;
     private final String source;
     private final List<Tag> tags;
-    private final boolean enableSD;
-    private final boolean enableMD;
+    private final boolean enableLegacy;
+    private final boolean enableTagging;
 
 
     public static ReporterBuilder builder(MetricRegistry registry,
@@ -58,8 +58,8 @@ public class LibratoMetricsReporter extends ScheduledReporter {
         this.omitComplexGauges = atts.omitComplexGauges;
         this.source = atts.source;
         this.tags = sanitize(atts.tags);
-        this.enableSD = atts.enableSD;
-        this.enableMD = atts.enableMD;
+        this.enableLegacy = atts.enableLegacy;
+        this.enableTagging = atts.enableTagging;
     }
 
     public void report(SortedMap<String, Gauge> gauges,
@@ -187,10 +187,10 @@ public class LibratoMetricsReporter extends ScheduledReporter {
     }
 
     private void addGauge(Measures measures, GaugeMeasure gauge) {
-        if (this.enableSD) {
+        if (this.enableLegacy) {
             measures.add(gauge);
         }
-        if (this.enableMD) {
+        if (this.enableTagging) {
             TaggedMeasure taggedMeasure = new TaggedMeasure(gauge);
             for (Tag tag : tags) {
                 taggedMeasure.addTag(tag);
