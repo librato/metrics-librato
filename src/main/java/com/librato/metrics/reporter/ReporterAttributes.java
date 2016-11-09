@@ -27,6 +27,7 @@ public class ReporterAttributes {
     boolean deleteIdleStats = true;
     boolean omitComplexGauges;
     Duration readTimeout;
+    Duration connectTimeout;
     String source;
     List<Tag> tags = new LinkedList<Tag>();
     ILibratoClientFactory libratoClientFactory = new DefaultLibratoClientFactory();

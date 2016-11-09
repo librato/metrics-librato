@@ -78,7 +78,16 @@ public class ReporterBuilder {
     }
 
     public ReporterBuilder setTimeout(long time, TimeUnit unit) {
+        return setReadTimeout(time, unit);
+    }
+
+    public ReporterBuilder setReadTimeout(long time, TimeUnit unit) {
         this.atts.readTimeout = new Duration(time, unit);
+        return this;
+    }
+
+    public ReporterBuilder setConnectTimeout(long time, TimeUnit unit) {
+        this.atts.connectTimeout = new Duration(time, unit);
         return this;
     }
 

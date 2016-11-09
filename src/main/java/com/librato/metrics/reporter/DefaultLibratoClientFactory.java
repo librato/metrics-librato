@@ -11,6 +11,9 @@ public class DefaultLibratoClientFactory implements ILibratoClientFactory {
         if (atts.readTimeout != null) {
             builder.setReadTimeout(atts.readTimeout);
         }
+        if (atts.connectTimeout != null) {
+            builder.setConnectTimeout(atts.connectTimeout);
+        }
         return builder.build();
     }
 }
