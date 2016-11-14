@@ -9,7 +9,7 @@
     <groupId>com.librato.metrics</groupId>
     <artifactId>metrics-librato</artifactId>
     <name>Metrics Librato Support</name>
-    <version>4.1.2.7-TAGGING-SNAPSHOT</version>
+    <version>4.1.2.7-TAGGING</version>
     <description>The LibratoReporter class runs in the background, publishing
         metrics to the Librato Metrics API at the
         specified interval.
