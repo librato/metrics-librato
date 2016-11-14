@@ -7,6 +7,7 @@ import com.librato.metrics.client.PostResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import java.net.SocketTimeoutException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.SortedMap;
@@ -77,12 +78,38 @@ public class LibratoMetricsReporter extends ScheduledReporter {
             PostMeasuresResult postResults = client.postMeasures(measures);
             for (PostResult result : postResults.results) {
                 if (result.isError()) {
-                    log.error("Failure to post to Librato: " + result.toString());
+                    handlePostFailure(result);
                 }
             }
         } catch (Exception e) {
             log.error("Failure to post to Librato", e);
         }
+    }
+
+    private void handlePostFailure(PostResult result) {
+        Exception exception = result.exception;
+        if (exception != null) {
+            handlePostFailure(exception);
+            return;
+        }
+        log.error("Failure to post to Librato: " + result.toString());
+    }
+
+    private void handlePostFailure(Exception e) {
+        Throwable cause = getCause(e);
+        if (cause instanceof SocketTimeoutException) {
+            log.warn("Could not connect to Librato: " + cause);
+            return;
+        }
+        log.warn("Failure to post to Librato", e);
+    }
+
+    private Throwable getCause(Exception e) {
+        Throwable cause = e;
+        while (cause.getCause() != null) {
+            cause = cause.getCause();
+        }
+        return cause;
     }
 
     private void addGauges(Measures measures, SortedMap<String, Gauge> gauges) {
