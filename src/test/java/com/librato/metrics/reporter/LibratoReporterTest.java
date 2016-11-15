@@ -5,6 +5,7 @@ import com.librato.metrics.client.IMeasure;
 import com.librato.metrics.client.LibratoClient;
 import com.librato.metrics.client.Measures;
 import com.librato.metrics.client.PostMeasuresResult;
+import org.assertj.core.api.Assertions;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 
@@ -13,13 +14,12 @@ import java.util.SortedMap;
 import java.util.TreeMap;
 import java.util.regex.Pattern;
 
+import static org.assertj.core.api.Assertions.assertThat;
 import static org.hamcrest.CoreMatchers.equalTo;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class LibratoMetricsReporterTest {
+public class LibratoReporterTest {
     SortedMap<String, Gauge> gauges = new TreeMap<String, Gauge>();
     SortedMap<String, Counter> counters = new TreeMap<String, Counter>();
     SortedMap<String, Histogram> histos = new TreeMap<String, Histogram>();
@@ -45,10 +45,10 @@ public class LibratoMetricsReporterTest {
             }
         });
 
-        LibratoMetricsReporter reporter = new LibratoMetricsReporter(atts);
+        LibratoReporter reporter = new LibratoReporter(atts);
         reporter.report(gauges, counters, histos, meters, timers);
         Measures measures = captor.getValue();
-        assertThat(measures.getMeasures().size(), equalTo(1));
+        assertThat(measures.getMeasures()).hasSize(1);
         IMeasure measure = measures.getMeasures().get(0);
         Map<String, Object> map = measure.toMap();
         assertThat(map.get("name").toString(), equalTo("foo"));
@@ -72,7 +72,7 @@ public class LibratoMetricsReporterTest {
         meters.put("ec2--foo", meter);
         meter.mark();
 
-        LibratoMetricsReporter reporter = new LibratoMetricsReporter(atts);
+        LibratoReporter reporter = new LibratoReporter(atts);
         reporter.report(gauges, counters, histos, meters, timers);
         Measures measures = captor.getValue();
         assertThat(measures.getMeasures().size(), equalTo(5));
@@ -86,6 +86,6 @@ public class LibratoMetricsReporterTest {
                 return;
             }
         }
-        fail("Did not find the right metric");
+        Assertions.fail("Did not find the right metric");
     }
 }

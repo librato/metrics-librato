@@ -18,8 +18,8 @@ import static com.librato.metrics.ExpandedMetric.*;
 /**
  * The main class in this library
  */
-public class LibratoMetricsReporter extends ScheduledReporter {
-    private static final Logger log = LoggerFactory.getLogger(LibratoMetricsReporter.class);
+public class LibratoReporter extends ScheduledReporter {
+    private static final Logger log = LoggerFactory.getLogger(LibratoReporter.class);
     private final LibratoClient client;
     private final DeltaTracker deltaTracker;
     private final Pattern sourceRegex;
@@ -43,7 +43,7 @@ public class LibratoMetricsReporter extends ScheduledReporter {
     /*
      * Constructor. Should be called from the builder.
      */
-    LibratoMetricsReporter(ReporterAttributes atts) {
+    LibratoReporter(ReporterAttributes atts) {
         super(atts.registry,
                 atts.reporterName,
                 atts.metricFilter,

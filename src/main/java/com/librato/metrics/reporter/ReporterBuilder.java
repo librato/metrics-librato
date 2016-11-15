@@ -18,8 +18,8 @@ public class ReporterBuilder {
         this.atts.token = token;
     }
 
-    public LibratoMetricsReporter build() {
-        return new LibratoMetricsReporter(atts);
+    public LibratoReporter build() {
+        return new LibratoReporter(atts);
     }
 
     public ReporterBuilder setUrl(String url) {
