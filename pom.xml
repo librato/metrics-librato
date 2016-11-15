@@ -34,21 +34,6 @@
     <properties>
         <dropwizard.metrics.version>3.1.2</dropwizard.metrics.version>
     </properties>
-    <developers>
-        <developer>
-            <id>mihasya</id>
-            <name>Mike Panchenko</name>
-            <email>m@mihasya.com</email>
-            <url>http://mihasya.com</url>
-            <timezone>-8</timezone>
-        </developer>
-        <developer>
-            <id>josephruscio</id>
-            <name>Joe Ruscio</name>
-            <email>joe@librato.com</email>
-            <timezone>-8</timezone>
-        </developer>
-    </developers>
     <packaging>jar</packaging>
     <build>
         <pluginManagement>
