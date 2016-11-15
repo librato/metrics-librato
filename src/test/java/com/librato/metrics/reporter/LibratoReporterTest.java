@@ -1,10 +1,7 @@
 package com.librato.metrics.reporter;
 
 import com.codahale.metrics.*;
-import com.librato.metrics.client.IMeasure;
-import com.librato.metrics.client.LibratoClient;
-import com.librato.metrics.client.Measures;
-import com.librato.metrics.client.PostMeasuresResult;
+import com.librato.metrics.client.*;
 import org.assertj.core.api.Assertions;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
@@ -15,7 +12,6 @@ import java.util.TreeMap;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.hamcrest.CoreMatchers.equalTo;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -49,11 +45,8 @@ public class LibratoReporterTest {
         reporter.report(gauges, counters, histos, meters, timers);
         Measures measures = captor.getValue();
         assertThat(measures.getMeasures()).hasSize(1);
-        IMeasure measure = measures.getMeasures().get(0);
-        Map<String, Object> map = measure.toMap();
-        assertThat(map.get("name").toString(), equalTo("foo"));
-        assertThat(map.get("source").toString(), equalTo("ec2"));
-        assertThat(map.get("value"), equalTo((Object)42d));
+        assertThat(measures.getMeasures().get(0)).isEqualTo(
+                new GaugeMeasure("name", 42).setSource("ec2"));
     }
 
     @Test
@@ -75,14 +68,14 @@ public class LibratoReporterTest {
         LibratoReporter reporter = new LibratoReporter(atts);
         reporter.report(gauges, counters, histos, meters, timers);
         Measures measures = captor.getValue();
-        assertThat(measures.getMeasures().size(), equalTo(5));
+        assertThat(measures.getMeasures()).hasSize(5);
         for (IMeasure measure : measures.getMeasures()) {
             Map<String, Object> map = measure.toMap();
             String name = map.get("name").toString();
             if (name.endsWith(".count")) {
-                assertThat(name, equalTo("foo.count"));
-                assertThat(map.get("source").toString(), equalTo("ec2"));
-                assertThat(map.get("value"), equalTo((Object) 1.0));
+                assertThat(name).isEqualTo("foo.count");
+                assertThat(map.get("source")).isEqualTo("ec2");
+                assertThat(map.get("value")).isEqualTo(1.0);
                 return;
             }
         }

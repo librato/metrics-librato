@@ -1,4 +1,4 @@
-package com.librato.metrics;
+package com.librato.metrics.reporter;
 
 public enum ExpandedMetric {
     // sampling

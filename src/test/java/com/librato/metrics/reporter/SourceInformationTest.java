@@ -1,5 +1,6 @@
-package com.librato.metrics;
+package com.librato.metrics.reporter;
 
+import com.librato.metrics.reporter.SourceInformation;
 import junit.framework.Assert;
 import junit.framework.TestCase;
 

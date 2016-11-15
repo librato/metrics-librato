@@ -1,4 +1,4 @@
-package com.librato.metrics;
+package com.librato.metrics.reporter;
 
 import java.util.EnumSet;
 import java.util.Set;

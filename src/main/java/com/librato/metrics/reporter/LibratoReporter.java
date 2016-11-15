@@ -1,7 +1,6 @@
 package com.librato.metrics.reporter;
 
 import com.codahale.metrics.*;
-import com.librato.metrics.*;
 import com.librato.metrics.client.*;
 import com.librato.metrics.client.PostResult;
 import org.slf4j.Logger;
@@ -13,7 +12,7 @@ import java.util.List;
 import java.util.SortedMap;
 import java.util.regex.Pattern;
 
-import static com.librato.metrics.ExpandedMetric.*;
+import static com.librato.metrics.reporter.ExpandedMetric.*;
 
 /**
  * The main class in this library

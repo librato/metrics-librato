@@ -1,4 +1,4 @@
-package com.librato.metrics;
+package com.librato.metrics.reporter;
 
 import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Metered;

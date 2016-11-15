@@ -2,7 +2,6 @@ package com.librato.metrics.reporter;
 
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
-import com.librato.metrics.MetricExpansionConfig;
 import com.librato.metrics.client.Duration;
 import com.librato.metrics.client.Tag;
 

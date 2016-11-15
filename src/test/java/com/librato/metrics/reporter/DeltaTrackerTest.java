@@ -1,5 +1,6 @@
-package com.librato.metrics;
+package com.librato.metrics.reporter;
 
+import com.librato.metrics.reporter.DeltaTracker;
 import org.junit.Before;
 import org.junit.Test;
 

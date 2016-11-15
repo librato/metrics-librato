@@ -1,8 +1,7 @@
 package com.librato.metrics.reporter;
 
 import com.codahale.metrics.Metric;
-import com.librato.metrics.LibratoReporter;
-import com.librato.metrics.Versions;
+import com.librato.metrics.client.Versions;
 
 public class Agent {
     /**
