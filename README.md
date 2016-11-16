@@ -5,32 +5,22 @@ The `LibratoReporter` class runs in the background, publishing metrics from <a h
 	<dependency>
 	  <groupId>com.librato.metrics</groupId>
 	  <artifactId>metrics-librato</artifactId>
-	  <version>4.1.2.5</version>
+	  <version>5.0.0.0</version>
 	</dependency>
-
-## Updating from 3.x?
-
-The `metrics-librato:4.x.x.x` release depends on `librato-java:1.x` which includes a fix for an [issue](https://github.com/librato/librato-java/pull/12)
-that was causing dashes to be stripped from metric names incorrectly. It is recommended to view the [readme](https://github.com/librato/librato-java#updating-from-01x-)
-for that project before upgrading to understand how some existing metric names might change.
 
 ## Usage
 
-During the initialization of your program, simply use the `.enable` method with the appropriately configured `LibratoReporter.Builder` class. See the setters on that method for all the available customizations (there are quite a few). The constructor for the `Builder` requires only the things that are necessary; sane defaults are provided for the rest of the options.
+Build and enable the reporter
 
     MetricRegistry registry = environment.metrics(); // if you're not using dropwizard, use your own registry
-    LibratoReporter.enable(
-        LibratoReporter.builder(
-            registry,
-            "<Librato Email>",
-            "<Librato API Token>",
-            "<Source Identifier (usually hostname)>"),
-        10,
-        TimeUnit.SECONDS);
-
-## Versioning
-
-Since this project depends heavily on `metrics-core`, the version number will be `<version of metrics-core being depended on>.<release number of the reporter>`. Thus, the first release will be version 2.1.2.0, as 2.1.2 is the current stable version of `metrics-core`. If this proves impractical, a different versioning scheme will be investigated.
+    LibratoReporter.builder(registry, "<Librato Email>", "<Librato API Token>")
+        .setSource("<Source Identifier (usually hostname)>")
+        // email support@librato.com to get access to our tagging beta
+        .setEnableTagging(true)  
+        .addTag("tier", "web")
+        .addTag("environment", "staging")
+        // finally start the reporter
+        .start(10, TimeUnit.SECONDS);
 
 ## Librato Metrics Used
 
@@ -114,13 +104,12 @@ _Note that Coda Timer percentiles are determined using configurable <a href="htt
 
 While this library aims to accurately report all of the data that Coda Metrics provides, it can become somewhat verbose. One can reduce the number of metrics reported for Coda Timers, Coda Meters, and Coda Histograms when configuring the reporter. The percentiles, rates, and count for these metrics can be whitelisted (they are all on by default). In order to do this, supply a `LibratoReporter.MetricExpansionConfig` to the builder:
 
-    LibratoReporter.builder(<username>, <token>, <source>)
+    LibratoReporter.builder(registry, <email>, <token>)
         .setExpansionConfig(
             new MetricExpansionConfig(
                 EnumSet.of(
                     LibratoReporter.ExpandedMetric.PCT_95,
                     LibratoReporter.ExpandedMetric.RATE_1_MINUTE)))
-        .build();
 
 In this configuration, the reporter will only report the 95th percentile and 1 minute rate for these metrics. Note that the `ComplexGauge`s will still be reported.
 
@@ -128,9 +117,8 @@ In this configuration, the reporter will only report the 95th percentile and 1 m
 
 Timers and Histograms end up generating a complex gauge along with any other expanded metrics that are configured to be sent to Librato. If you wish to exclude these complex gauges, one may enable `omitComplexGauges` in the LibratoReporter.
 
-    LibratoReporter.builder(<username>, <token>, <source>)
+    LibratoReporter.builder(registry, <email>, <token>)
       .setOmitComplexGauges(true)
-      .build();
 
 Note that in addition to the mean, complex gauges also include the minimum and maximum dimensions, so if you choose to enable this option, you will no longer have access to those summaries for those metrics.
 
@@ -140,10 +128,8 @@ A new feature in `4.0.1.4` detects when certain types of metrics (Meters, Histog
 
 This is enabled by default, but should you wish to disable this feature, you can do so when setting up the LibratoReporter:
 
-    LibratoReporter.builder(<username>, <token>, <source>)
-    	...
+    LibratoReporter.builder(registry, <email>, <token>)
     	.setDeleteIdleStats(false)
-
 
 ## Custom Sources
 
@@ -155,7 +141,8 @@ batches them, it will apply this regular expression (if supplied) to each metric
 matches, it will use the first matching group as the source for that metric, and everything after the entire
 expression match will be used as the actual metric name.
 
-    builder.setSourceRegex(Pattern.compile("^(.*?)--"))
+    LibratoReporter.builder(registry, <email>, <token>)
+        .setSourceRegex(Pattern.compile("^(.*?)--"))
 
 The above regular expression will take a meter name like "uid:42--api.latency" and report that with a source of
 `uid:42` and a metric name of `api.latency`.
