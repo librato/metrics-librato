@@ -21,6 +21,12 @@ public class ReporterBuilder {
         return new LibratoReporter(atts);
     }
 
+    public LibratoReporter start(long period, TimeUnit unit) {
+        LibratoReporter reporter = build();
+        reporter.start(period, unit);
+        return reporter;
+    }
+
     public ReporterBuilder setUrl(String url) {
         this.atts.url = url;
         return this;
