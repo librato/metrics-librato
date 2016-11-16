@@ -52,6 +52,18 @@ public class LibratoReporterTest {
     }
 
     @Test
+    public void testCounter() throws Exception {
+        Counter counter = new Counter();
+        counters.put("foo", counter);
+        counter.inc();
+        LibratoReporter reporter = new LibratoReporter(atts);
+        reporter.report(gauges, counters, histos, meters, timers);
+        HashSet<IMeasure> measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
+        assertThat(measures).containsOnly(
+                new GaugeMeasure("foo", 1));
+    }
+
+    @Test
     public void testTimer() throws Exception {
         Timer timer = mock(Timer.class);
         when(timer.getCount()).thenReturn(1L);
@@ -61,6 +73,7 @@ public class LibratoReporterTest {
         when(timer.getFifteenMinuteRate()).thenReturn(5d);
         Snapshot snapshot = mock(Snapshot.class);
         when(timer.getSnapshot()).thenReturn(snapshot);
+        when(snapshot.size()).thenReturn(1);
         when(snapshot.getMean()).thenReturn(6d);
         when(snapshot.getMin()).thenReturn(7L);
         when(snapshot.getMax()).thenReturn(8L);
