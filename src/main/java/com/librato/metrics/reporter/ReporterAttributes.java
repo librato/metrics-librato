@@ -32,4 +32,6 @@ public class ReporterAttributes {
     ILibratoClientFactory libratoClientFactory = new DefaultLibratoClientFactory();
     boolean enableLegacy = true;
     boolean enableTagging;
+    RateConverter rateConverter;
+    DurationConverter durationConverter;
 }

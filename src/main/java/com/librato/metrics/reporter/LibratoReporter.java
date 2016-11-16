@@ -17,7 +17,7 @@ import static com.librato.metrics.reporter.ExpandedMetric.*;
 /**
  * The main class in this library
  */
-public class LibratoReporter extends ScheduledReporter {
+public class LibratoReporter extends ScheduledReporter implements RateConverter, DurationConverter {
     private static final Logger log = LoggerFactory.getLogger(LibratoReporter.class);
     private final LibratoClient client;
     private final DeltaTracker deltaTracker;
@@ -31,6 +31,8 @@ public class LibratoReporter extends ScheduledReporter {
     private final List<Tag> tags;
     private final boolean enableLegacy;
     private final boolean enableTagging;
+    private final RateConverter rateConverter;
+    private final DurationConverter durationConverter;
 
 
     public static ReporterBuilder builder(MetricRegistry registry,
@@ -60,6 +62,8 @@ public class LibratoReporter extends ScheduledReporter {
         this.tags = sanitize(atts.tags);
         this.enableLegacy = atts.enableLegacy;
         this.enableTagging = atts.enableTagging;
+        this.rateConverter = atts.rateConverter != null ? atts.rateConverter : this;
+        this.durationConverter = atts.durationConverter != null ? atts.durationConverter : this;
     }
 
     public void report(SortedMap<String, Gauge> gauges,
@@ -169,20 +173,20 @@ public class LibratoReporter extends ScheduledReporter {
     private void addMeter(Measures measures, String metricName, Metered meter) {
         Long countDelta = deltaTracker.getDelta(metricName, meter.getCount());
         maybeAdd(measures, COUNT, metricName, countDelta);
-        maybeAdd(measures, RATE_MEAN, metricName, convertRate(meter.getMeanRate()));
-        maybeAdd(measures, RATE_1_MINUTE, metricName, convertRate(meter.getOneMinuteRate()));
-        maybeAdd(measures, RATE_5_MINUTE, metricName, convertRate(meter.getFiveMinuteRate()));
-        maybeAdd(measures, RATE_15_MINUTE, metricName, convertRate(meter.getFifteenMinuteRate()));
+        maybeAdd(measures, RATE_MEAN, metricName, doConvertRate(meter.getMeanRate()));
+        maybeAdd(measures, RATE_1_MINUTE, metricName, doConvertRate(meter.getOneMinuteRate()));
+        maybeAdd(measures, RATE_5_MINUTE, metricName, doConvertRate(meter.getFiveMinuteRate()));
+        maybeAdd(measures, RATE_15_MINUTE, metricName, doConvertRate(meter.getFifteenMinuteRate()));
     }
 
     private void addSampling(Measures measures, String name, Sampling sampling, boolean convert) {
         final Snapshot snapshot = sampling.getSnapshot();
-        maybeAdd(measures, MEDIAN, name, convertDuration(snapshot.getMedian(), convert));
-        maybeAdd(measures, PCT_75, name, convertDuration(snapshot.get75thPercentile(), convert));
-        maybeAdd(measures, PCT_95, name, convertDuration(snapshot.get95thPercentile(), convert));
-        maybeAdd(measures, PCT_98, name, convertDuration(snapshot.get98thPercentile(), convert));
-        maybeAdd(measures, PCT_99, name, convertDuration(snapshot.get99thPercentile(), convert));
-        maybeAdd(measures, PCT_999, name, convertDuration(snapshot.get999thPercentile(), convert));
+        maybeAdd(measures, MEDIAN, name, doConvertDuration(snapshot.getMedian(), convert));
+        maybeAdd(measures, PCT_75, name, doConvertDuration(snapshot.get75thPercentile(), convert));
+        maybeAdd(measures, PCT_95, name, doConvertDuration(snapshot.get95thPercentile(), convert));
+        maybeAdd(measures, PCT_98, name, doConvertDuration(snapshot.get98thPercentile(), convert));
+        maybeAdd(measures, PCT_99, name, doConvertDuration(snapshot.get99thPercentile(), convert));
+        maybeAdd(measures, PCT_999, name, doConvertDuration(snapshot.get999thPercentile(), convert));
         if (!omitComplexGauges) {
             final double sum = snapshot.size() * snapshot.getMean();
             final long count = (long) snapshot.size();
@@ -192,10 +196,10 @@ public class LibratoReporter extends ScheduledReporter {
                 try {
                     gauge = new GaugeMeasure(
                             addPrefix(info.name),
-                            convertDuration(sum, convert),
+                            doConvertDuration(sum, convert),
                             count,
-                            convertDuration(snapshot.getMin(), convert),
-                            convertDuration(snapshot.getMax(), convert)
+                            doConvertDuration(snapshot.getMin(), convert),
+                            doConvertDuration(snapshot.getMax(), convert)
                     ).setSource(info.source);
                 } catch (IllegalArgumentException e) {
                     log.warn("Could not create gauge", e);
@@ -262,8 +266,22 @@ public class LibratoReporter extends ScheduledReporter {
         return deleteIdleStats;
     }
 
-    private double convertDuration(double duration, boolean convert) {
-        return convert ? convertDuration(duration) : duration;
+    private double doConvertDuration(double duration, boolean convert) {
+        return convert ? durationConverter.convertDuration(duration) : duration;
+    }
+
+    private double doConvertRate(double rate) {
+        return rateConverter.convertRate(rate);
+    }
+
+    @Override
+    public double convertRate(double rate) {
+        return super.convertRate(rate);
+    }
+
+    @Override
+    public double convertDuration(double duration) {
+        return super.convertDuration(duration);
     }
 
     private List<Tag> sanitize(List<Tag> tags) {

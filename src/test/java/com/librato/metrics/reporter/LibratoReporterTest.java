@@ -37,6 +37,56 @@ public class LibratoReporterTest {
         };
         when(client.postMeasures(captor.capture()))
                 .thenReturn(new PostMeasuresResult());
+        atts.durationConverter = new DurationConverter() {
+            @Override
+            public double convertDuration(double duration) {
+                return duration;
+            }
+        };
+        atts.rateConverter = new RateConverter() {
+            @Override
+            public double convertRate(double rate) {
+                return rate;
+            }
+        };
+    }
+
+    @Test
+    public void testTimer() throws Exception {
+        Timer timer = mock(Timer.class);
+        when(timer.getCount()).thenReturn(1L);
+        when(timer.getMeanRate()).thenReturn(2d);
+        when(timer.getOneMinuteRate()).thenReturn(3d);
+        when(timer.getFiveMinuteRate()).thenReturn(4d);
+        when(timer.getFifteenMinuteRate()).thenReturn(5d);
+        Snapshot snapshot = mock(Snapshot.class);
+        when(timer.getSnapshot()).thenReturn(snapshot);
+        when(snapshot.getMean()).thenReturn(6d);
+        when(snapshot.getMin()).thenReturn(7L);
+        when(snapshot.getMax()).thenReturn(8L);
+        when(snapshot.getMedian()).thenReturn(9d);
+        when(snapshot.get75thPercentile()).thenReturn(10d);
+        when(snapshot.get95thPercentile()).thenReturn(11d);
+        when(snapshot.get98thPercentile()).thenReturn(12d);
+        when(snapshot.get99thPercentile()).thenReturn(13d);
+        when(snapshot.get999thPercentile()).thenReturn(14d);
+        timers.put("foo", timer);
+        LibratoReporter reporter = new LibratoReporter(atts);
+        reporter.report(gauges, counters, histos, meters, timers);
+        HashSet<IMeasure> measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
+        assertThat(measures).containsOnly(
+                new GaugeMeasure("foo", snapshot.getMean() * timer.getCount(), timer.getCount(), snapshot.getMin(), snapshot.getMax()),
+                new GaugeMeasure("foo.count", timer.getCount()),
+                new GaugeMeasure("foo.median", snapshot.getMedian()),
+                new GaugeMeasure("foo.75th", snapshot.get75thPercentile()),
+                new GaugeMeasure("foo.95th", snapshot.get95thPercentile()),
+                new GaugeMeasure("foo.98th", snapshot.get98thPercentile()),
+                new GaugeMeasure("foo.99th", snapshot.get99thPercentile()),
+                new GaugeMeasure("foo.999th", snapshot.get999thPercentile()),
+                new GaugeMeasure("foo.meanRate", timer.getMeanRate()),
+                new GaugeMeasure("foo.1MinuteRate", timer.getOneMinuteRate()),
+                new GaugeMeasure("foo.5MinuteRate", timer.getFiveMinuteRate()),
+                new GaugeMeasure("foo.15MinuteRate", timer.getFifteenMinuteRate()));
     }
 
     @Test
@@ -51,7 +101,6 @@ public class LibratoReporterTest {
         LibratoReporter reporter = new LibratoReporter(atts);
         reporter.report(gauges, counters, histos, meters, timers);
         HashSet<IMeasure> measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
-        System.out.println("measures = " + measures);
         assertThat(measures).containsOnly(
                 new GaugeMeasure("foo.count", 1),
                 new GaugeMeasure("foo.meanRate", meter.getMeanRate()),
