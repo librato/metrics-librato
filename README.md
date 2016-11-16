@@ -15,13 +15,20 @@ Build and enable the reporter
     MetricRegistry registry = environment.metrics(); // if you're not using dropwizard, use your own registry
     LibratoReporter.builder(registry, "<Librato Email>", "<Librato API Token>")
         .setSource("<Source Identifier (usually hostname)>")
-        // email support@librato.com to get access to our tagging beta
+        .start(10, TimeUnit.SECONDS);
+        
+## Tagging
+
+You can enable the reporter to submit tagged measures.  Our tagging
+product is currently in beta. If you'd like to take advantage of this,
+please email support@librato.com to join the beta.
+
+    LibratoReporter.builder(registry, "<email>", "<token>")
         .setEnableTagging(true)  
         .addTag("tier", "web")
         .addTag("environment", "staging")
-        // finally start the reporter
         .start(10, TimeUnit.SECONDS);
-
+        
 ## Librato Metrics Used
 
 This library will output a few different kinds of Librato Metrics to Librato:
