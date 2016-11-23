@@ -1,71 +1,215 @@
 package com.librato.metrics;
 
-import com.yammer.metrics.Metrics;
+import com.librato.metrics.client.*;
 import com.yammer.metrics.core.*;
 import com.yammer.metrics.core.Timer;
 import com.yammer.metrics.reporting.AbstractPollingReporter;
+import com.yammer.metrics.stats.Snapshot;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.util.*;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
 
 /**
  * A reporter for publishing metrics to <a href="http://metrics.librato.com/">Librato Metrics</a>
  */
-public class LibratoReporter extends AbstractPollingReporter implements MetricProcessor<MetricsLibratoBatch> {
+public class LibratoReporter extends AbstractPollingReporter implements MetricProcessor<Measures> {
     private static final Logger LOG = LoggerFactory.getLogger(LibratoReporter.class);
+    private final LibratoClient client;
     private final DeltaTracker deltaTracker;
-    private final String source;
-    private final long timeout;
-    private final TimeUnit timeoutUnit;
-    private final Sanitizer sanitizer;
-    private final ScheduledExecutorService executor;
-    private final HttpPoster httpPoster;
+    private final Pattern sourceRegex;
     private final String prefix;
     private final String prefixDelimiter;
+    private final MetricExpansionConfig expansionConfig;
+    private final boolean deleteIdleStats;
+    private final boolean omitComplexGauges;
+    private final String source;
+    private final List<Tag> tags;
+    private final boolean enableLegacy;
+    private final boolean enableTagging;
+    private final RateConverter rateConverter;
+    private final DurationConverter durationConverter;
+    private final MetricPredicate predicate;
+    private final ScheduledExecutorService executor;
+    private final Sanitizer sanitizer;
 
-    protected final MetricsRegistry registry;
-    protected final MetricPredicate predicate;
-    protected final Clock clock;
-    protected final VirtualMachineMetrics vm;
-    protected final boolean reportVmMetrics;
-    protected final MetricExpansionConfig expansionConfig;
-
-    /**
-     * private to prevent someone from accidentally actually using this constructor. see .builder()
+    /*
+     * Constructor. Should be called from the builder.
      */
-    private LibratoReporter(String name,
-                            final Sanitizer customSanitizer,
-                            String source,
-                            long timeout,
-                            TimeUnit timeoutUnit,
-                            final MetricsRegistry registry,
-                            final MetricPredicate predicate,
-                            Clock clock,
-                            VirtualMachineMetrics vm,
-                            boolean reportVmMetrics,
-                            MetricExpansionConfig expansionConfig,
-                            HttpPoster httpPoster,
-                            String prefix,
-                            String prefixDelimiter) {
-        super(registry, name);
-        this.sanitizer = customSanitizer;
-        this.source = source;
-        this.timeout = timeout;
-        this.timeoutUnit = timeoutUnit;
-        this.registry = registry;
-        this.predicate = predicate;
-        this.clock = clock;
-        this.vm = vm;
-        this.reportVmMetrics = reportVmMetrics;
-        this.expansionConfig = expansionConfig;
-        this.executor = registry.newScheduledThreadPool(1, name);
-        this.httpPoster = httpPoster;
-        this.prefix = LibratoUtil.checkPrefix(prefix);
-        this.prefixDelimiter = prefixDelimiter;
-        this.deltaTracker = new DeltaTracker(new DeltaMetricSupplier(registry, predicate));
+    LibratoReporter(ReporterAttributes atts) {
+        super(atts.registry, atts.reporterName);
+        this.client = atts.libratoClientFactory.build(atts);
+        this.sanitizer = atts.customSanitizer;
+        this.deltaTracker = new DeltaTracker(new DeltaMetricSupplier(atts.registry, atts.predicate));
+        this.predicate = atts.predicate;
+        this.sourceRegex = atts.sourceRegex;
+        this.prefix = LibratoUtil.checkPrefix(atts.prefix);
+        this.prefixDelimiter = atts.prefixDelimiter;
+        this.executor = atts.registry.newScheduledThreadPool(1, atts.reporterName);
+        this.expansionConfig = atts.expansionConfig;
+        this.deleteIdleStats = atts.deleteIdleStats;
+        this.omitComplexGauges = atts.omitComplexGauges;
+        this.source = atts.source;
+        this.tags = sanitize(atts.tags);
+        this.enableLegacy = atts.enableLegacy;
+        this.enableTagging = atts.enableTagging;
+        this.rateConverter = atts.rateConverter != null ? atts.rateConverter : (RateConverter) this;
+        this.durationConverter = atts.durationConverter != null ? atts.durationConverter : (DurationConverter) this;
+    }
+
+    public void processMeter(MetricName metricName, Metered metered, Measures measures) throws Exception {
+        if (skipMetric(metricName.getName(), metered.count())) {
+            return;
+        }
+        addMeter(measures, metricName.getName(), metered);
+    }
+
+    public void processCounter(MetricName metricName, Counter counter, Measures measures) throws Exception {
+        long count = counter.count();
+        SourceInformation info = SourceInformation.from(sourceRegex, metricName.getName());
+        addGauge(measures, addPrefix(info.name), count, info.source);
+    }
+
+    public void processHistogram(MetricName metricName, Histogram histogram, Measures measures) throws Exception {
+        if (skipMetric(metricName.getName(), histogram.count())) {
+            return;
+        }
+        Long countDelta = deltaTracker.getDelta(metricName.getName(), histogram.count());
+        maybeAdd(measures, ExpandedMetric.COUNT, metricName.getName(), countDelta);
+        final boolean convertDurations = false;
+        addSampling(measures, metricName.getName(), histogram, convertDurations);
+    }
+
+    public void processTimer(MetricName metricName, Timer timer, Measures measures) throws Exception {
+        if (skipMetric(metricName.getName(), timer.count())) {
+            return;
+        }
+
+        addMeter(measures, metricName.getName(), timer);
+        final boolean convertDurations = true;
+        addSampling(measures, metricName.getName(), timer, convertDurations);
+    }
+
+    public void processGauge(MetricName metricName, Gauge<?> gauge, Measures measures) throws Exception {
+        Number number = Numbers.getNumberFrom(gauge.value());
+        if (number != null) {
+            SourceInformation info = SourceInformation.from(sourceRegex, metricName.getName());
+            addGauge(measures, addPrefix(info.name), number, info.source);
+        }
+    }
+
+    private void addGauge(Measures measures, String metricName, Number number, String source) {
+        GaugeMeasure gauge = new GaugeMeasure(metricName, number.doubleValue()).setSource(source);
+        addGauge(measures, gauge);
+    }
+
+    private void addGauge(Measures measures, GaugeMeasure gauge) {
+        if (this.enableLegacy) {
+            measures.add(gauge);
+        }
+        if (this.enableTagging) {
+            TaggedMeasure taggedMeasure = new TaggedMeasure(gauge);
+            for (Tag tag : tags) {
+                taggedMeasure.addTag(tag);
+            }
+            String source = gauge.getSource();
+            if (source != null) {
+                taggedMeasure.addTag(sanitize(new Tag("source", source)));
+            }
+            measures.add(taggedMeasure);
+        }
+    }
+
+    private void addMeter(Measures measures, String metricName, Metered meter) {
+        Long countDelta = deltaTracker.getDelta(metricName, meter.count());
+        maybeAdd(measures, ExpandedMetric.COUNT, metricName, countDelta);
+        maybeAdd(measures, ExpandedMetric.RATE_MEAN, metricName, doConvertRate(meter.meanRate()));
+        maybeAdd(measures, ExpandedMetric.RATE_1_MINUTE, metricName, doConvertRate(meter.oneMinuteRate()));
+        maybeAdd(measures, ExpandedMetric.RATE_5_MINUTE, metricName, doConvertRate(meter.fiveMinuteRate()));
+        maybeAdd(measures, ExpandedMetric.RATE_15_MINUTE, metricName, doConvertRate(meter.fifteenMinuteRate()));
+    }
+
+    private boolean skipMetric(String name, long counting) {
+        return deleteIdleStats() && deltaTracker.peekDelta(name, counting) == 0;
+    }
+
+    private boolean deleteIdleStats() {
+        return deleteIdleStats;
+    }
+
+    private void maybeAdd(Measures measures, ExpandedMetric metric, String name, Number reading) {
+        if (expansionConfig.isSet(metric)) {
+            String metricName = metric.buildMetricName(name);
+            if (!Numbers.isANumber(reading)) {
+                return;
+            }
+            SourceInformation info = SourceInformation.from(sourceRegex, metricName);
+            addGauge(measures, addPrefix(info.name), reading, info.source);
+        }
+    }
+
+    private void addSampling(Measures measures, String name, Sampling sampling, boolean convert) {
+        final Snapshot snapshot = sampling.getSnapshot();
+        maybeAdd(measures, ExpandedMetric.MEDIAN, name, doConvertDuration(snapshot.getMedian(), convert));
+        maybeAdd(measures, ExpandedMetric.PCT_75, name, doConvertDuration(snapshot.get75thPercentile(), convert));
+        maybeAdd(measures, ExpandedMetric.PCT_95, name, doConvertDuration(snapshot.get95thPercentile(), convert));
+        maybeAdd(measures, ExpandedMetric.PCT_98, name, doConvertDuration(snapshot.get98thPercentile(), convert));
+        maybeAdd(measures, ExpandedMetric.PCT_99, name, doConvertDuration(snapshot.get99thPercentile(), convert));
+        maybeAdd(measures, ExpandedMetric.PCT_999, name, doConvertDuration(snapshot.get999thPercentile(), convert));
+
+        // Yammer samplings don't support mean/min/max we can probably pull this out from getValues() but
+        // for now just omitting
+//        if (!omitComplexGauges) {
+//            final double sum = snapshot.size() * snapshot.getMean();
+//            final long count = (long) snapshot.size();
+//            if (count > 0) {
+//                SourceInformation info = SourceInformation.from(sourceRegex, name);
+//                GaugeMeasure gauge;
+//                try {
+//                    gauge = new GaugeMeasure(
+//                            addPrefix(info.name),
+//                            doConvertDuration(sum, convert),
+//                            count,
+//                            doConvertDuration(snapshot.getMin(), convert),
+//                            doConvertDuration(snapshot.getMax(), convert)
+//                    ).setSource(info.source);
+//                } catch (IllegalArgumentException e) {
+//                    LOG.warn("Could not create gauge", e);
+//                    return;
+//                }
+//                addGauge(measures, gauge);
+//            }
+//        }
+    }
+
+    private double doConvertRate(double rate) {
+        return rateConverter.convertRate(rate);
+    }
+
+    private double doConvertDuration(double duration, boolean convert) {
+        return convert ? durationConverter.convertDuration(duration) : duration;
+    }
+
+    private List<Tag> sanitize(List<Tag> tags) {
+        List<Tag> result = new LinkedList<Tag>();
+        for (Tag tag : tags) {
+            result.add(sanitize(tag));
+        }
+        return result;
+    }
+
+    private String addPrefix(String metricName) {
+        if (prefix == null || prefix.length() == 0) {
+            return metricName;
+        }
+        return prefix + prefixDelimiter + metricName;
+    }
+
+    private Tag sanitize(Tag tag) {
+        return new Tag(Sanitizer.LAST_PASS.apply(tag.name), Sanitizer.LAST_PASS.apply(tag.value));
     }
 
     /**
@@ -95,24 +239,10 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
 
     @Override
     public void run() {
-        // accumulate all the metrics in the batch, then post it allowing the LibratoBatch class to break up the work
-        MetricsLibratoBatch batch = new MetricsLibratoBatch(
-                LibratoBatch.DEFAULT_BATCH_SIZE,
-                sanitizer,
-                timeout,
-                timeoutUnit,
-                expansionConfig,
-                httpPoster,
-                prefix,
-                prefixDelimiter,
-                deltaTracker);
-        if (reportVmMetrics) {
-            reportVmMetrics(batch);
-        }
-        reportRegularMetrics(batch);
+        Measures measures = new Measures(source, Collections.<Tag>emptyList(), System.currentTimeMillis() / 1000);
+        reportRegularMetrics(measures);
         try {
-            final long epoch = TimeUnit.MILLISECONDS.toSeconds(this.clock.time());
-            batch.post(source, epoch);
+            client.postMeasures(measures);
         } catch (Exception e) {
             LOG.error("Librato post failed: ", e);
         }
@@ -130,11 +260,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         executor.scheduleAtFixedRate(this, period, period, unit);
     }
 
-    protected void reportVmMetrics(MetricsLibratoBatch batch) {
-        LibratoUtil.addVmMetricsToBatch(vm, batch);
-    }
-
-    protected void reportRegularMetrics(MetricsLibratoBatch batch) {
+    protected void reportRegularMetrics(Measures measures) {
         final SortedMap<String, SortedMap<MetricName, Metric>> metrics = getMetricsRegistry().groupedMetrics(predicate);
         LOG.debug("Preparing batch of {} top level metrics", metrics.size());
         for (Map.Entry<String, SortedMap<MetricName, Metric>> entry : metrics.entrySet()) {
@@ -142,7 +268,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
                 final Metric metric = subEntry.getValue();
                 if (metric != null) {
                     try {
-                        metric.processWith(this, subEntry.getKey(), batch);
+                        metric.processWith(this, subEntry.getKey(), measures);
                     } catch (Exception e) {
                         LOG.error("Error processing regular metrics:", e);
                     }
@@ -151,292 +277,7 @@ public class LibratoReporter extends AbstractPollingReporter implements MetricPr
         }
     }
 
-    public void processGauge(MetricName name, Gauge<?> gauge, MetricsLibratoBatch batch) throws Exception {
-        batch.addGauge(getStringName(name), gauge);
-    }
-
-    public void processCounter(MetricName name, Counter counter, MetricsLibratoBatch batch) throws Exception {
-        batch.addCounter(getStringName(name), counter);
-    }
-
-    public void processHistogram(MetricName name, Histogram histogram, MetricsLibratoBatch batch) throws Exception {
-        batch.addHistogram(getStringName(name), histogram);
-    }
-
-    public void processMeter(MetricName name, Metered meter, MetricsLibratoBatch batch) throws Exception {
-        batch.addMetered(getStringName(name), meter);
-    }
-
-    public void processTimer(MetricName name, Timer timer, MetricsLibratoBatch batch) throws Exception {
-        batch.addTimer(getStringName(name), timer);
-    }
-
     private String getStringName(MetricName fullName) {
         return sanitizer.apply(LibratoUtil.nameToString(fullName));
-    }
-
-    /**
-     * a builder for the LibratoReporter class that requires things that cannot be inferred and uses
-     * sane default values for everything else.
-     */
-    public static class Builder {
-        private final String source;
-        private Sanitizer sanitizer = Sanitizer.NO_OP;
-        private long timeout = 5;
-        private TimeUnit timeoutUnit = TimeUnit.SECONDS;
-        private String name = "librato-reporter";
-        private MetricsRegistry registry = Metrics.defaultRegistry();
-        private MetricPredicate predicate = MetricPredicate.ALL;
-        private Clock clock = Clock.defaultClock();
-        private VirtualMachineMetrics vm = VirtualMachineMetrics.getInstance();
-        private boolean reportVmMetrics = true;
-        private MetricExpansionConfig expansionConfig = MetricExpansionConfig.ALL;
-        private HttpPoster httpPoster;
-        private String prefix;
-        private String prefixDelimiter = ".";
-
-        public Builder(String source, HttpPoster httpPoster) {
-            this.source = source;
-            this.httpPoster = httpPoster;
-        }
-
-        /**
-         * Sets the character that will follow the prefix. Defaults to ".".
-         *
-         * @param delimiter the delimiter
-         * @return itself
-         */
-        @SuppressWarnings("unused")
-        public Builder setPrefixDelimiter(String delimiter) {
-            this.prefixDelimiter = delimiter;
-            return this;
-        }
-
-        /**
-         * Sets a prefix that will be prepended to all metric names
-         *
-         * @param prefix the prefix
-         * @return itself
-         */
-        @SuppressWarnings("unused")
-        public Builder setPrefix(String prefix) {
-            this.prefix = prefix;
-            return this;
-        }
-
-        /**
-         * Sets the instance that will perform the HTTP posting
-         *
-         * @param httpPoster the poster
-         * @return itself
-         */
-        @SuppressWarnings("unused")
-        public Builder setHttpPoster(HttpPoster httpPoster) {
-            this.httpPoster = httpPoster;
-            return this;
-        }
-
-        /**
-         * set the HTTP timeout for a publishing attempt
-         *
-         * @param timeout     duration to expect a response
-         * @param timeoutUnit unit for duration
-         * @return itself
-         */
-        @SuppressWarnings("unused")
-        public Builder setTimeout(long timeout, TimeUnit timeoutUnit) {
-            this.timeout = timeout;
-            this.timeoutUnit = timeoutUnit;
-            return this;
-        }
-
-        /**
-         * Specify a custom name for this reporter
-         *
-         * @param name the name to be used
-         * @return itself
-         */
-        @SuppressWarnings("unused")
-        public Builder setName(String name) {
-            this.name = name;
-            return this;
-        }
-
-        /**
-         * Use a custom sanitizer. All metric names are run through a sanitizer to ensure validity before being sent
-         * along. Librato places some restrictions on the characters allowed in keys, so all keys are ultimately run
-         * through APIUtil.lastPassSanitizer. Specifying an additional sanitizer (that runs before lastPassSanitizer)
-         * allows the user to customize what they want done about invalid characters and excessively long metric names.
-         *
-         * @param sanitizer the custom sanitizer to use  (defaults to a noop sanitizer).
-         * @return itself
-         */
-        @SuppressWarnings("unused")
-        public Builder setSanitizer(Sanitizer sanitizer) {
-            this.sanitizer = sanitizer;
-            return this;
-        }
-
-        /**
-         * override default MetricsRegistry
-         *
-         * @param registry registry to be used
-         * @return itself
-         */
-        @SuppressWarnings("unused")
-        public Builder setRegistry(MetricsRegistry registry) {
-            this.registry = registry;
-            return this;
-        }
-
-        /**
-         * Filter the metrics that this particular reporter publishes
-         *
-         * @param predicate the predicate by which the metrics are to be filtered
-         * @return itself
-         */
-        @SuppressWarnings("unused")
-        public Builder setPredicate(MetricPredicate predicate) {
-            this.predicate = predicate;
-            return this;
-        }
-
-        /**
-         * use a custom clock
-         *
-         * @param clock to be used
-         * @return itself
-         */
-        @SuppressWarnings("unused")
-        public Builder setClock(Clock clock) {
-            this.clock = clock;
-            return this;
-        }
-
-        /**
-         * use a custom instance of VirtualMachineMetrics
-         *
-         * @param vm the instance to use
-         * @return itself
-         */
-        @SuppressWarnings("unused")
-        public Builder setVm(VirtualMachineMetrics vm) {
-            this.vm = vm;
-            return this;
-        }
-
-        /**
-         * turn on/off reporting of VM internal metrics (if, for example, you already get those elsewhere)
-         *
-         * @param reportVmMetrics true (report) or false (don't report)
-         * @return itself
-         */
-        public Builder setReportVmMetrics(boolean reportVmMetrics) {
-            this.reportVmMetrics = reportVmMetrics;
-            return this;
-        }
-
-        /**
-         * Enables control over how the reporter generates 'expanded' metrics from meters and histograms,
-         * such as percentiles and rates.
-         *
-         * @param expansionConfig the configuration
-         * @return itself
-         * @see {@link ExpandedMetric}
-         */
-        public Builder setExpansionConfig(MetricExpansionConfig expansionConfig) {
-            this.expansionConfig = expansionConfig;
-            return this;
-        }
-
-        /**
-         * Build the LibratoReporter as configured by this Builder
-         *
-         * @return a fully configured LibratoReporter
-         */
-        public LibratoReporter build() {
-            return new LibratoReporter(
-                    name,
-                    sanitizer,
-                    source,
-                    timeout,
-                    timeoutUnit,
-                    registry,
-                    predicate,
-                    clock,
-                    vm,
-                    reportVmMetrics,
-                    expansionConfig,
-                    httpPoster,
-                    prefix,
-                    prefixDelimiter);
-        }
-    }
-
-    /**
-     * convenience method for creating a Builder that uses the Ning HTTP client
-     */
-    public static Builder builder(String username, String token, String source) {
-        final String apiUrl = "https://metrics-api.librato.com/v1/metrics";
-        final NingHttpPoster httpPoster = NingHttpPoster.newPoster(username, token, apiUrl);
-        return builder(source, httpPoster);
-    }
-
-    public static Builder builder(String source, HttpPoster httpPoster) {
-        return new Builder(source, httpPoster);
-    }
-
-    public static enum ExpandedMetric {
-        // sampling
-        MEDIAN("median"),
-        PCT_75("75th"),
-        PCT_95("95th"),
-        PCT_98("98th"),
-        PCT_99("99th"),
-        PCT_999("999th"),
-        // metered
-        COUNT("count"),
-        RATE_MEAN("meanRate"),
-        RATE_1_MINUTE("1MinuteRate"),
-        RATE_5_MINUTE("5MinuteRate"),
-        RATE_15_MINUTE("15MinuteRate");
-
-        private final String displayName;
-
-        public String buildMetricName(String metric) {
-            return metric + "." + displayName;
-        }
-
-        private ExpandedMetric(String displayName) {
-            this.displayName = displayName;
-        }
-    }
-
-    /**
-     * Configures how to report "expanded" metrics derived from meters and histograms (e.g. percentiles,
-     * rates, etc). Default is to report everything.
-     *
-     * @see ExpandedMetric
-     */
-    public static class MetricExpansionConfig {
-        public static MetricExpansionConfig ALL = new MetricExpansionConfig(EnumSet.allOf(ExpandedMetric.class));
-        private final Set<ExpandedMetric> enabled;
-
-        public MetricExpansionConfig(Set<ExpandedMetric> enabled) {
-            this.enabled = EnumSet.copyOf(enabled);
-        }
-
-        public boolean isSet(ExpandedMetric metric) {
-            return enabled.contains(metric);
-        }
-    }
-
-    /**
-     * @param builder  a LibratoReporter.Builder
-     * @param interval the interval at which the metrics are to be reporter
-     * @param unit     the timeunit for interval
-     */
-    public static void enable(Builder builder, long interval, TimeUnit unit) {
-        builder.build().start(interval, unit);
     }
 }
