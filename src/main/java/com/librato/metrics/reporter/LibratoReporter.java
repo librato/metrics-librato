@@ -2,7 +2,6 @@ package com.librato.metrics.reporter;
 
 import com.codahale.metrics.*;
 import com.librato.metrics.client.*;
-import com.librato.metrics.client.PostResult;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -19,6 +18,7 @@ import static com.librato.metrics.reporter.ExpandedMetric.*;
  */
 public class LibratoReporter extends ScheduledReporter implements RateConverter, DurationConverter {
     private static final Logger log = LoggerFactory.getLogger(LibratoReporter.class);
+    private static MetricRegistry registry;
     private final LibratoClient client;
     private final DeltaTracker deltaTracker;
     private final Pattern sourceRegex;
@@ -34,6 +34,13 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
     private final RateConverter rateConverter;
     private final DurationConverter durationConverter;
 
+    private static synchronized void setRegistry(MetricRegistry registry) {
+        LibratoReporter.registry = registry;
+    }
+
+    public static synchronized MetricRegistry registry() {
+        return LibratoReporter.registry;
+    }
 
     public static ReporterBuilder builder(MetricRegistry registry,
                                           String email,
@@ -50,6 +57,7 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
                 atts.metricFilter,
                 atts.rateUnit,
                 atts.durationUnit);
+        setRegistry(atts.registry);
         this.client = atts.libratoClientFactory.build(atts);
         this.deltaTracker = new DeltaTracker(new DeltaMetricSupplier(atts.registry));
         this.sourceRegex = atts.sourceRegex;
@@ -120,8 +128,7 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
             Gauge gauge = gauges.get(metricName);
             Number number = Numbers.getNumberFrom(gauge.getValue());
             if (number != null) {
-                SourceInformation info = SourceInformation.from(sourceRegex, metricName);
-                addGauge(measures, addPrefix(info.name), number, info.source);
+                addLibratoGauge(measures, convertToSignal(metricName), number.doubleValue());
             }
         }
     }
@@ -130,8 +137,7 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
         for (String metricName : counters.keySet()) {
             Counter counter = counters.get(metricName);
             long count = counter.getCount();
-            SourceInformation info = SourceInformation.from(sourceRegex, metricName);
-            addGauge(measures, addPrefix(info.name), count, info.source);
+            addLibratoGauge(measures, convertToSignal(metricName), count);
         }
     }
 
@@ -158,6 +164,15 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
         }
     }
 
+    private void addMeter(Measures measures, String metricName, Metered meter) {
+        Long countDelta = deltaTracker.getDelta(metricName, meter.getCount());
+        maybeAdd(measures, COUNT, metricName, countDelta);
+        maybeAdd(measures, RATE_MEAN, metricName, doConvertRate(meter.getMeanRate()));
+        maybeAdd(measures, RATE_1_MINUTE, metricName, doConvertRate(meter.getOneMinuteRate()));
+        maybeAdd(measures, RATE_5_MINUTE, metricName, doConvertRate(meter.getFiveMinuteRate()));
+        maybeAdd(measures, RATE_15_MINUTE, metricName, doConvertRate(meter.getFifteenMinuteRate()));
+    }
+
     private void addTimers(Measures measures, SortedMap<String, Timer> timers) {
         for (String metricName : timers.keySet()) {
             Timer timer = timers.get(metricName);
@@ -168,15 +183,6 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
             final boolean convertDurations = true;
             addSampling(measures, metricName, timer, convertDurations);
         }
-    }
-
-    private void addMeter(Measures measures, String metricName, Metered meter) {
-        Long countDelta = deltaTracker.getDelta(metricName, meter.getCount());
-        maybeAdd(measures, COUNT, metricName, countDelta);
-        maybeAdd(measures, RATE_MEAN, metricName, doConvertRate(meter.getMeanRate()));
-        maybeAdd(measures, RATE_1_MINUTE, metricName, doConvertRate(meter.getOneMinuteRate()));
-        maybeAdd(measures, RATE_5_MINUTE, metricName, doConvertRate(meter.getFiveMinuteRate()));
-        maybeAdd(measures, RATE_15_MINUTE, metricName, doConvertRate(meter.getFifteenMinuteRate()));
     }
 
     private void addSampling(Measures measures, String name, Sampling sampling, boolean convert) {
@@ -191,43 +197,46 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
             final double sum = snapshot.size() * snapshot.getMean();
             final long count = (long) snapshot.size();
             if (count > 0) {
-                SourceInformation info = SourceInformation.from(sourceRegex, name);
-                GaugeMeasure gauge;
                 try {
-                    gauge = new GaugeMeasure(
-                            addPrefix(info.name),
+                    addLibratoGauge(measures, convertToSignal(name),
                             doConvertDuration(sum, convert),
                             count,
                             doConvertDuration(snapshot.getMin(), convert),
-                            doConvertDuration(snapshot.getMax(), convert)
-                    ).setSource(info.source);
+                            doConvertDuration(snapshot.getMax(), convert));
                 } catch (IllegalArgumentException e) {
                     log.warn("Could not create gauge", e);
-                    return;
                 }
-                addGauge(measures, gauge);
             }
         }
     }
 
-
-    private void addGauge(Measures measures, String metricName, Number number, String source) {
-        GaugeMeasure gauge = new GaugeMeasure(metricName, number.doubleValue()).setSource(source);
-        addGauge(measures, gauge);
+    private void addLibratoGauge(Measures measures, Signal signal, double sum, long count, double min, double max) {
+        GaugeMeasure gauge = new GaugeMeasure(signal.name, sum, count, min, max);
+        addLibratoGauge(measures, signal, gauge);
     }
 
-    private void addGauge(Measures measures, GaugeMeasure gauge) {
+    private void addLibratoGauge(Measures measures, Signal signal, double value) {
+        GaugeMeasure gauge = new GaugeMeasure(signal.name, value);
+        addLibratoGauge(measures, signal, gauge);
+    }
+
+    private void addLibratoGauge(Measures measures, Signal signal, GaugeMeasure gauge) {
         if (this.enableLegacy) {
+            gauge.setSource(signal.source);
             measures.add(gauge);
         }
         if (this.enableTagging) {
             TaggedMeasure taggedMeasure = new TaggedMeasure(gauge);
-            for (Tag tag : tags) {
+            for (Tag tag : signal.tags) {
                 taggedMeasure.addTag(tag);
             }
-            String source = gauge.getSource();
-            if (source != null) {
+            if (!signal.overrideTags && signal.tags.isEmpty() && signal.source != null) {
                 taggedMeasure.addTag(sanitize(new Tag("source", source)));
+            }
+            if (!signal.overrideTags) {
+                for (Tag tag : tags) {
+                    taggedMeasure.addTag(tag);
+                }
             }
             measures.add(taggedMeasure);
         }
@@ -247,15 +256,38 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
         return prefix;
     }
 
-    private void maybeAdd(Measures measures, ExpandedMetric metric, String name, Number reading) {
-        if (expansionConfig.isSet(metric)) {
-            String metricName = metric.buildMetricName(name);
+    private void maybeAdd(Measures measures, ExpandedMetric expandedMetric, String name, Number reading) {
+        if (expansionConfig.isSet(expandedMetric)) {
             if (!Numbers.isANumber(reading)) {
                 return;
             }
-            SourceInformation info = SourceInformation.from(sourceRegex, metricName);
-            addGauge(measures, addPrefix(info.name), reading, info.source);
+            Signal signal = convertToSignal(name, expandedMetric);
+            addLibratoGauge(measures, signal, reading.doubleValue());
         }
+    }
+
+    private Signal convertToSignal(String registryName) {
+        return convertToSignal(registryName, null);
+    }
+
+    private Signal convertToSignal(final String registryName, ExpandedMetric expandedMetric) {
+        SourceInformation sourceInfo = SourceInformation.from(sourceRegex, registryName);
+        if (sourceInfo.source != null) {
+            // this is a legacy source added metric
+            String metricName = sourceInfo.name;
+            if (expandedMetric != null) {
+                metricName = expandedMetric.buildMetricName(metricName);
+            }
+            metricName = addPrefix(metricName);
+            return new Signal(metricName, sourceInfo.source);
+        }
+
+        Signal signal = Signal.decode(registryName);
+        if (expandedMetric != null) {
+            signal.name = expandedMetric.buildMetricName(signal.name);
+        }
+        signal.name = addPrefix(signal.name);
+        return signal;
     }
 
     private boolean skipMetric(String name, Counting counting) {
