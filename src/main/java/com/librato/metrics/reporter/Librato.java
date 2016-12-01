@@ -103,36 +103,64 @@ public class Librato {
     }
 
     public Counter counter() {
+        return counter(null);
+    }
+
+    public Counter counter(final Counter counter) {
         return register(Counter.class, new Supplier<Counter>() {
             @Override
             public Counter get() {
+                if (counter != null) {
+                    return counter;
+                }
                 return new Counter();
             }
         });
     }
 
     public Histogram histogram() {
+        return histogram(null);
+    }
+
+    public Histogram histogram(final Histogram histogram) {
         return register(Histogram.class, new Supplier<Histogram>() {
             @Override
             public Histogram get() {
+                if (histogram != null) {
+                    return histogram;
+                }
                 return new Histogram(reservoir.get());
             }
         });
     }
 
     public Meter meter() {
+        return meter(null);
+    }
+
+    public Meter meter(final Meter meter) {
         return register(Meter.class, new Supplier<Meter>() {
             @Override
             public Meter get() {
+                if (meter != null) {
+                    return meter;
+                }
                 return new Meter();
             }
         });
     }
 
     public Timer timer() {
+        return timer(null);
+    }
+
+    public Timer timer(final Timer timer) {
         return register(Timer.class, new Supplier<Timer>() {
             @Override
             public Timer get() {
+                if (timer != null) {
+                    return timer;
+                }
                 return new Timer(reservoir.get());
             }
         });

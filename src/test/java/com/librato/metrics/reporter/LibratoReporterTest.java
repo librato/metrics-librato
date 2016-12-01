@@ -66,6 +66,31 @@ public class LibratoReporterTest {
     }
 
     @Test
+    public void testRejectsNonTaggedMetrics() throws Exception {
+        atts.enableLegacy = false;
+        atts.enableTagging = true;
+        Counter counter = Librato.metric(registry, "foo").counter();
+        counter.inc();
+        LibratoReporter reporter = new LibratoReporter(atts);
+        report(reporter);
+        HashSet<IMeasure> measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
+        assertThat(measures.isEmpty());
+    }
+
+    @Test
+    public void testTaggedCounter() throws Exception {
+        atts.enableLegacy = false;
+        atts.enableTagging = true;
+        Counter counter = Librato.metric(registry, "foo").tag("a", "b").counter();
+        counter.inc();
+        LibratoReporter reporter = new LibratoReporter(atts);
+        report(reporter);
+        HashSet<IMeasure> measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
+        assertThat(measures).containsOnly(
+                new TaggedMeasure("foo", 1, new Tag("a", "b")));
+    }
+
+    @Test
     public void testTimer() throws Exception {
         Timer timer = mock(Timer.class);
         when(timer.getCount()).thenReturn(1L);
@@ -105,6 +130,48 @@ public class LibratoReporterTest {
     }
 
     @Test
+    public void testTaggedTimer() throws Exception {
+        atts.enableLegacy = false;
+        atts.enableTagging = true;
+
+        Timer timer = mock(Timer.class);
+        when(timer.getCount()).thenReturn(1L);
+        when(timer.getMeanRate()).thenReturn(2d);
+        when(timer.getOneMinuteRate()).thenReturn(3d);
+        when(timer.getFiveMinuteRate()).thenReturn(4d);
+        when(timer.getFifteenMinuteRate()).thenReturn(5d);
+        Snapshot snapshot = mock(Snapshot.class);
+        when(timer.getSnapshot()).thenReturn(snapshot);
+        when(snapshot.size()).thenReturn(1);
+        when(snapshot.getMean()).thenReturn(6d);
+        when(snapshot.getMin()).thenReturn(7L);
+        when(snapshot.getMax()).thenReturn(8L);
+        when(snapshot.getMedian()).thenReturn(9d);
+        when(snapshot.get75thPercentile()).thenReturn(10d);
+        when(snapshot.get95thPercentile()).thenReturn(11d);
+        when(snapshot.get98thPercentile()).thenReturn(12d);
+        when(snapshot.get99thPercentile()).thenReturn(13d);
+        when(snapshot.get999thPercentile()).thenReturn(14d);
+        Librato.metric(registry, "foo").tag("a", "z").timer(timer);
+        LibratoReporter reporter = new LibratoReporter(atts);
+        report(reporter);
+        HashSet<IMeasure> measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
+        assertThat(measures).containsOnly(
+                new TaggedMeasure("foo", snapshot.getMean() * timer.getCount(), timer.getCount(), snapshot.getMin(), snapshot.getMax(), new Tag("a", "z")),
+                new TaggedMeasure("foo.count", timer.getCount(), new Tag("a", "z")),
+                new TaggedMeasure("foo.median", snapshot.getMedian(), new Tag("a", "z")),
+                new TaggedMeasure("foo.75th", snapshot.get75thPercentile(), new Tag("a", "z")),
+                new TaggedMeasure("foo.95th", snapshot.get95thPercentile(), new Tag("a", "z")),
+                new TaggedMeasure("foo.98th", snapshot.get98thPercentile(), new Tag("a", "z")),
+                new TaggedMeasure("foo.99th", snapshot.get99thPercentile(), new Tag("a", "z")),
+                new TaggedMeasure("foo.999th", snapshot.get999thPercentile(), new Tag("a", "z")),
+                new TaggedMeasure("foo.meanRate", timer.getMeanRate(), new Tag("a", "z")),
+                new TaggedMeasure("foo.1MinuteRate", timer.getOneMinuteRate(), new Tag("a", "z")),
+                new TaggedMeasure("foo.5MinuteRate", timer.getFiveMinuteRate(), new Tag("a", "z")),
+                new TaggedMeasure("foo.15MinuteRate", timer.getFifteenMinuteRate(), new Tag("a", "z")));
+    }
+
+    @Test
     public void testMeter() throws Exception {
         Meter meter = mock(Meter.class);
         when(meter.getCount()).thenReturn(1L);
@@ -125,6 +192,29 @@ public class LibratoReporterTest {
     }
 
     @Test
+    public void testTaggedMeter() throws Exception {
+        atts.enableLegacy = false;
+        atts.enableTagging = true;
+
+        Meter meter = mock(Meter.class);
+        when(meter.getCount()).thenReturn(1L);
+        when(meter.getMeanRate()).thenReturn(2d);
+        when(meter.getOneMinuteRate()).thenReturn(3d);
+        when(meter.getFiveMinuteRate()).thenReturn(4d);
+        when(meter.getFifteenMinuteRate()).thenReturn(5d);
+        Librato.metric(registry, "foo").tag("a", "z").meter(meter);
+        LibratoReporter reporter = new LibratoReporter(atts);
+        report(reporter);
+        HashSet<IMeasure> measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
+        assertThat(measures).containsOnly(
+                new TaggedMeasure("foo.count", 1, new Tag("a", "z")),
+                new TaggedMeasure("foo.meanRate", meter.getMeanRate(), new Tag("a", "z")),
+                new TaggedMeasure("foo.1MinuteRate", meter.getOneMinuteRate(), new Tag("a", "z")),
+                new TaggedMeasure("foo.5MinuteRate", meter.getFiveMinuteRate(), new Tag("a", "z")),
+                new TaggedMeasure("foo.15MinuteRate", meter.getFifteenMinuteRate(), new Tag("a", "z")));
+    }
+
+    @Test
     public void testHisto() throws Exception {
         Histogram histo = new Histogram(new UniformReservoir());
         histo.update(42);
@@ -141,6 +231,28 @@ public class LibratoReporterTest {
                 new GaugeMeasure("foo.98th", 42),
                 new GaugeMeasure("foo.99th", 42),
                 new GaugeMeasure("foo.999th", 42));
+    }
+
+    @Test
+    public void testTaggedHisto() throws Exception {
+        atts.enableLegacy = false;
+        atts.enableTagging = true;
+
+        Histogram histo = new Histogram(new UniformReservoir());
+        histo.update(42);
+        Librato.metric(registry, "foo").tag("a", "z").histogram(histo);
+        LibratoReporter reporter = new LibratoReporter(atts);
+        report(reporter);
+        HashSet<IMeasure> measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
+        assertThat(measures).containsOnly(
+                new TaggedMeasure("foo", 42, 1, 42, 42, new Tag("a", "z")),
+                new TaggedMeasure("foo.count", 1, new Tag("a", "z")),
+                new TaggedMeasure("foo.median", 42, new Tag("a", "z")),
+                new TaggedMeasure("foo.75th", 42, new Tag("a", "z")),
+                new TaggedMeasure("foo.95th", 42, new Tag("a", "z")),
+                new TaggedMeasure("foo.98th", 42, new Tag("a", "z")),
+                new TaggedMeasure("foo.99th", 42, new Tag("a", "z")),
+                new TaggedMeasure("foo.999th", 42, new Tag("a", "z")));
     }
 
     @Test
