@@ -9,8 +9,6 @@ import org.mockito.ArgumentCaptor;
 
 import java.util.HashSet;
 import java.util.Map;
-import java.util.SortedMap;
-import java.util.TreeMap;
 import java.util.regex.Pattern;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -18,11 +16,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class LibratoReporterTest {
-    SortedMap<String, Gauge> gauges = new TreeMap<String, Gauge>();
-    SortedMap<String, Counter> counters = new TreeMap<String, Counter>();
-    SortedMap<String, Histogram> histos = new TreeMap<String, Histogram>();
-    SortedMap<String, Meter> meters = new TreeMap<String, Meter>();
-    SortedMap<String, Timer> timers = new TreeMap<String, Timer>();
+    MetricRegistry registry = new MetricRegistry();
     LibratoClient client = mock(LibratoClient.class);
     ReporterAttributes atts = new ReporterAttributes();
     ArgumentCaptor<Measures> captor = ArgumentCaptor.forClass(Measures.class);
@@ -51,13 +45,21 @@ public class LibratoReporterTest {
         };
     }
 
+    private void report(LibratoReporter reporter) {
+        reporter.report(registry.getGauges(),
+                registry.getCounters(),
+                registry.getHistograms(),
+                registry.getMeters(),
+                registry.getTimers());
+    }
+
     @Test
     public void testCounter() throws Exception {
         Counter counter = new Counter();
-        counters.put("foo", counter);
+        registry.register("foo", counter);
         counter.inc();
         LibratoReporter reporter = new LibratoReporter(atts);
-        reporter.report(gauges, counters, histos, meters, timers);
+        report(reporter);
         HashSet<IMeasure> measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
         assertThat(measures).containsOnly(
                 new GaugeMeasure("foo", 1));
@@ -83,9 +85,9 @@ public class LibratoReporterTest {
         when(snapshot.get98thPercentile()).thenReturn(12d);
         when(snapshot.get99thPercentile()).thenReturn(13d);
         when(snapshot.get999thPercentile()).thenReturn(14d);
-        timers.put("foo", timer);
+        registry.register("foo", timer);
         LibratoReporter reporter = new LibratoReporter(atts);
-        reporter.report(gauges, counters, histos, meters, timers);
+        report(reporter);
         HashSet<IMeasure> measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
         assertThat(measures).containsOnly(
                 new GaugeMeasure("foo", snapshot.getMean() * timer.getCount(), timer.getCount(), snapshot.getMin(), snapshot.getMax()),
@@ -110,9 +112,9 @@ public class LibratoReporterTest {
         when(meter.getOneMinuteRate()).thenReturn(3d);
         when(meter.getFiveMinuteRate()).thenReturn(4d);
         when(meter.getFifteenMinuteRate()).thenReturn(5d);
-        meters.put("foo", meter);
+        registry.register("foo", meter);
         LibratoReporter reporter = new LibratoReporter(atts);
-        reporter.report(gauges, counters, histos, meters, timers);
+        report(reporter);
         HashSet<IMeasure> measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
         assertThat(measures).containsOnly(
                 new GaugeMeasure("foo.count", 1),
@@ -126,9 +128,9 @@ public class LibratoReporterTest {
     public void testHisto() throws Exception {
         Histogram histo = new Histogram(new UniformReservoir());
         histo.update(42);
-        histos.put("foo", histo);
+        registry.register("foo", histo);
         LibratoReporter reporter = new LibratoReporter(atts);
-        reporter.report(gauges, counters, histos, meters, timers);
+        report(reporter);
         HashSet<IMeasure> measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
         assertThat(measures).containsOnly(
                 new GaugeMeasure("foo", 42, 1, 42, 42),
@@ -143,14 +145,14 @@ public class LibratoReporterTest {
 
     @Test
     public void testUsesSourceRegexForGauges() throws Exception {
-        gauges.put("ec2--foo", new Gauge() {
+        registry.register("ec2--foo", new Gauge() {
             public Object getValue() {
                 return 42;
             }
         });
 
         LibratoReporter reporter = new LibratoReporter(atts);
-        reporter.report(gauges, counters, histos, meters, timers);
+        report(reporter);
         Measures measures = captor.getValue();
         assertThat(measures.getMeasures()).hasSize(1);
         assertThat(measures.getMeasures().get(0)).isEqualTo(
@@ -160,11 +162,11 @@ public class LibratoReporterTest {
     @Test
     public void testUsesSourceRegexForMeters() throws Exception {
         Meter meter = new Meter();
-        meters.put("ec2--foo", meter);
+        registry.register("ec2--foo", meter);
         meter.mark();
 
         LibratoReporter reporter = new LibratoReporter(atts);
-        reporter.report(gauges, counters, histos, meters, timers);
+        report(reporter);
         Measures measures = captor.getValue();
         assertThat(measures.getMeasures()).hasSize(5);
         for (IMeasure measure : measures.getMeasures()) {
