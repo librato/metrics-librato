@@ -87,8 +87,8 @@ public class Librato {
         return this;
     }
 
-    public Librato inheritTags(boolean inheritTags) {
-        this.overrideTags = !inheritTags;
+    public Librato doNotInheritTags() {
+        this.overrideTags = true;
         return this;
     }
 

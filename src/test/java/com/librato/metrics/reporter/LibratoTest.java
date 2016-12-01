@@ -78,7 +78,7 @@ public class LibratoTest {
     public void testTagsConversion() throws Exception {
         Librato.metric(registry, "foo")
                 .tag("region", "us-east-1")
-                .inheritTags(false)
+                .doNotInheritTags()
                 .counter();
         Signal signal = Signal.decode(registry.getCounters().keySet().iterator().next());
         assertThat(signal).isEqualTo(new Signal(
@@ -92,7 +92,7 @@ public class LibratoTest {
     public void testSourceAndTagsConversion() throws Exception {
         Librato.metric(registry, "foo")
                 .tag("region", "us-east-1")
-                .inheritTags(false)
+                .doNotInheritTags()
                 .source("bar")
                 .counter();
         Signal signal = Signal.decode(registry.getCounters().keySet().iterator().next());
