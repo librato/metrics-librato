@@ -1,41 +1,38 @@
 package com.librato.metrics.reporter;
 
 import com.codahale.metrics.*;
+import com.librato.metrics.client.Duration;
 import com.librato.metrics.client.Tag;
 
 import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
+import java.util.concurrent.atomic.AtomicReference;
 
 /**
  * Utility class for encoding sources and/or tags into metric names.
  */
 public class Librato {
-    private static Supplier<Reservoir> defaultReservoir = new Supplier<Reservoir>() {
+    public static AtomicReference<Supplier<Reservoir>> defaultReservoir = new AtomicReference<Supplier<Reservoir>>(new Supplier<Reservoir>() {
         @Override
         public Reservoir get() {
             return new ExponentiallyDecayingReservoir();
         }
-    };
+    });
+    public static final AtomicReference<MetricRegistry> defaultRegistry = new AtomicReference<MetricRegistry>(new MetricRegistry());
+    public static final AtomicReference<Duration> defaultWindow = new AtomicReference<Duration>(new Duration(1, TimeUnit.MINUTES));
     private static final NameCache nameCache = new NameCache(5000);
     private final MetricRegistry registry;
     private final String name;
     private String source;
     private List<Tag> tags = Collections.emptyList();
     private boolean overrideTags;
-    private Supplier<Reservoir> reservoir = defaultReservoir;
+    private Supplier<Reservoir> reservoir = defaultReservoir.get();
 
-    public static void defaultReservoir(Supplier<Reservoir> reservoir) {
-        defaultReservoir = reservoir;
-    }
 
     public static Librato metric(String name) {
-        MetricRegistry registry = LibratoReporter.registry();
-        if (registry == null) {
-            throw new RuntimeException(
-                    "You must first start the LibratoReporter to use this method");
-        }
+        MetricRegistry registry = defaultRegistry.get();
         return metric(registry, name);
     }
 
@@ -50,6 +47,17 @@ public class Librato {
 
     public Librato reservoir(Supplier<Reservoir> reservoir) {
         this.reservoir = reservoir;
+        return this;
+    }
+
+    public Librato window() {
+        this.reservoir = new Supplier<Reservoir>() {
+            @Override
+            public Reservoir get() {
+                Duration window = defaultWindow.get();
+                return new SlidingTimeWindowReservoir(window.duration, window.timeUnit);
+            }
+        };
         return this;
     }
 
@@ -216,6 +224,7 @@ public class Librato {
         return new Signal(name, source, tags, overrideTags);
     }
 
+
     private String encodeName(final String name, final Signal signal) {
         return nameCache.get(name, signal, new Supplier<String>() {
             @Override
@@ -224,6 +233,4 @@ public class Librato {
             }
         });
     }
-
-
 }

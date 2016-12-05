@@ -9,6 +9,7 @@ import java.net.SocketTimeoutException;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.SortedMap;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 
 import static com.librato.metrics.reporter.ExpandedMetric.*;
@@ -34,14 +35,6 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
     private final RateConverter rateConverter;
     private final DurationConverter durationConverter;
 
-    private static synchronized void setRegistry(MetricRegistry registry) {
-        LibratoReporter.registry = registry;
-    }
-
-    public static synchronized MetricRegistry registry() {
-        return LibratoReporter.registry;
-    }
-
     public static ReporterBuilder builder(MetricRegistry registry,
                                           String email,
                                           String token) {
@@ -57,7 +50,7 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
                 atts.metricFilter,
                 atts.rateUnit,
                 atts.durationUnit);
-        setRegistry(atts.registry);
+        Librato.defaultRegistry.set(atts.registry);
         this.client = atts.libratoClientFactory.build(atts);
         this.deltaTracker = new DeltaTracker(new DeltaMetricSupplier(atts.registry));
         this.sourceRegex = atts.sourceRegex;
@@ -72,6 +65,12 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
         this.enableTagging = atts.enableTagging;
         this.rateConverter = atts.rateConverter != null ? atts.rateConverter : this;
         this.durationConverter = atts.durationConverter != null ? atts.durationConverter : this;
+    }
+
+    @Override
+    public void start(long period, TimeUnit unit) {
+        Librato.defaultWindow.set(new Duration(period, unit));
+        super.start(period, unit);
     }
 
     public void report(SortedMap<String, Gauge> gauges,
