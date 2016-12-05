@@ -71,13 +71,13 @@ public class Librato {
         return this;
     }
 
-    public Librato source(String source) {
-        this.source = source;
+    public Librato source(Object source) {
+        this.source = source.toString();
         return this;
     }
 
-    public Librato tag(String name, String value) {
-        addTag(new Tag(name, value));
+    public Librato tag(String name, Object value) {
+        addTag(new Tag(name, value.toString()));
         return this;
     }
 
