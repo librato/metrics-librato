@@ -8,6 +8,7 @@ import org.slf4j.LoggerFactory;
 import java.net.SocketTimeoutException;
 import java.util.LinkedList;
 import java.util.List;
+import java.util.Objects;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
@@ -229,12 +230,16 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
             for (Tag tag : signal.tags) {
                 taggedMeasure.addTag(tag);
             }
+            boolean addedSourceTag = false;
             if (!signal.overrideTags && signal.tags.isEmpty() && signal.source != null) {
-                taggedMeasure.addTag(sanitize(new Tag("source", source)));
+                taggedMeasure.addTag(sanitize(new Tag("source", signal.source)));
+                addedSourceTag = true;
             }
             if (!signal.overrideTags) {
                 for (Tag tag : tags) {
-                    taggedMeasure.addTag(tag);
+                    if (!addedSourceTag || !"source".equals(tag.name)) {
+                        taggedMeasure.addTag(tag);
+                    }
                 }
             }
             measures.add(taggedMeasure);
