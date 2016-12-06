@@ -1,28 +1,17 @@
 package com.librato.metrics.reporter;
 
 public class NameCache {
-    public static class Key {
-        final String name;
-        final Signal signal;
-
-        public Key(String name, Signal signal) {
-            this.name = name;
-            this.signal = signal;
-        }
-    }
-
-    private final LRU<Key, String> cache;
+    private final LRU<Signal, String> cache;
 
     public NameCache(int maxSize) {
-        this.cache = new LRU<Key, String>(maxSize);
+        this.cache = new LRU<Signal, String>(maxSize);
     }
 
-    public String get(String name, Signal signal, Supplier<String> fullNameSupplier) {
-        Key key = new Key(name, signal);
-        String result = cache.get(key);
+    public String get(Signal signal, Supplier<String> fullNameSupplier) {
+        String result = cache.get(signal);
         if (result == null) {
             result = fullNameSupplier.get();
-            cache.set(key, result);
+            cache.set(signal, result);
         }
         return result;
     }

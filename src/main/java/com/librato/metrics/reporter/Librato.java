@@ -189,7 +189,7 @@ public class Librato {
         if (signal == null) {
             return register(registry, name, metric, klass);
         }
-        String encodedName = encodeName(name, signal);
+        String encodedName = encodeName(signal);
         return register(registry, encodedName, metric, klass);
     }
 
@@ -228,8 +228,8 @@ public class Librato {
     }
 
 
-    private String encodeName(final String name, final Signal signal) {
-        return nameCache.get(name, signal, new Supplier<String>() {
+    private String encodeName(final Signal signal) {
+        return nameCache.get(signal, new Supplier<String>() {
             @Override
             public String get() {
                 return Json.serialize(signal);

@@ -42,7 +42,6 @@ public class Signal {
         this.overrideTags = overrideTags;
     }
 
-
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
