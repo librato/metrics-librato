@@ -18,7 +18,7 @@ public class DeltaTracker {
     private static final Logger LOG = LoggerFactory.getLogger(DeltaTracker.class);
     private final ConcurrentMap<String, Long> lookup = new ConcurrentHashMap<String, Long>();
 
-    public static interface MetricSupplier {
+    public interface MetricSupplier {
         Map<String, Metric> getMetrics();
     }
 
