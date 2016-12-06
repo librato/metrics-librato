@@ -229,12 +229,16 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
             for (Tag tag : signal.tags) {
                 taggedMeasure.addTag(tag);
             }
+            boolean addedSourceTag = false;
             if (!signal.overrideTags && signal.tags.isEmpty() && signal.source != null) {
-                taggedMeasure.addTag(sanitize(new Tag("source", source)));
+                taggedMeasure.addTag(sanitize(new Tag("source", signal.source)));
+                addedSourceTag = true;
             }
             if (!signal.overrideTags) {
                 for (Tag tag : tags) {
-                    taggedMeasure.addTag(tag);
+                    if (!addedSourceTag || !"source".equals(tag.name)) {
+                        taggedMeasure.addTag(tag);
+                    }
                 }
             }
             measures.add(taggedMeasure);

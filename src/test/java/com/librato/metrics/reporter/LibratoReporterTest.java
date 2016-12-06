@@ -215,6 +215,26 @@ public class LibratoReporterTest {
     }
 
     @Test
+    public void testInheritsSource() throws Exception {
+        atts.enableLegacy = true;
+        atts.enableTagging = true;
+        atts.tags.add(new Tag("source", "slingbot"));
+
+        Counter counter = Librato.metric(registry, "foo").source("uid:362").counter();
+        counter.inc();
+
+        LibratoReporter reporter = new LibratoReporter(atts);
+        HashSet<IMeasure> measures;
+
+        report(reporter);
+        measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
+        assertThat(measures).containsOnly(
+                new GaugeMeasure("foo",1).setSource("uid:362"),
+                new TaggedMeasure("foo", 1, 1, 1, 1, new Tag("source", "uid:362")));
+
+    }
+
+    @Test
     public void testTaggedAndSourceMeter() throws Exception {
         atts.enableLegacy = true;
         atts.enableTagging = true;
