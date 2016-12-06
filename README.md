@@ -44,6 +44,10 @@ The Librato fluent helper provides a number of ways to make it easy to interface
     Librato.metric(registry, "jobs-processed").source("ebs").meter().mark()
     Librato.metric(registry, "just-these-tags").tag('"foo", "bar").doNotInheritTags().timer.update(time)
 
+When you start the Librato reporter as described earlier, that will set the registry used to start it as the default registry in the fluent helper.  That lets you simply use the shorter form:
+
+    Librato.metric("logins").tag("uid", uid).meter().mark()
+
 ## Librato Metrics Used
 
 This library will output a few different kinds of Librato Metrics to Librato:
