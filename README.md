@@ -10,25 +10,44 @@ The `LibratoReporter` class runs in the background, publishing metrics from <a h
 
 ## Usage
 
-Build and enable the reporter
+Start the reporter in your application bootstrap:
 
     MetricRegistry registry = environment.metrics(); // if you're not using dropwizard, use your own registry
-    LibratoReporter.builder(registry, "<Librato Email>", "<Librato API Token>")
+    Librato.reporter(registry, "<Librato Email>", "<Librato API Token>")
         .setSource("<Source Identifier (usually hostname)>")
         .start(10, TimeUnit.SECONDS);
-        
+
 ## Tagging
 
 You can enable the reporter to submit tagged measures.  Our tagging
 product is currently in beta. If you'd like to take advantage of this,
 please email support@librato.com to join the beta.
 
-    LibratoReporter.builder(registry, "<email>", "<token>")
+    Librato.reporter(registry, "<email>", "<token>")
         .setEnableTagging(true)  
         .addTag("tier", "web")
         .addTag("environment", "staging")
         .start(10, TimeUnit.SECONDS);
-        
+
+The tags you add in this way will be included on every measure. If you wish to supply custom tags at runtime you can use the Librato helper:
+
+    Librato.metric("logins").tag("userId", userId).meter().mark()
+
+
+## Fluent Helper
+
+The Librato fluent helper provides a number of ways to make it easy to interface with Dropwizard Metrics.  You do not need to use this class but if you want to specify custom sources and/or tags, it will be easier. Some examples:
+
+    Librato.metric(registry, "logins").tag("uid", uid).meter().mark()
+    Librato.metric(registry, "kafka-read-latencies").tag("broker", broker).histogram().update(latency)
+    Librato.metric(registry, "temperature").source("celcius").tag("type", "celcius").gauge(() -> 42))
+    Librato.metric(registry, "jobs-processed").source("ebs").meter().mark()
+    Librato.metric(registry, "just-these-tags").tag('"foo", "bar").doNotInheritTags().timer.update(time)
+
+When you start the Librato reporter as described earlier, that will set the registry used to start it as the default registry in the fluent helper.  That lets you simply use the shorter form:
+
+    Librato.metric("logins").tag("uid", uid).meter().mark()
+
 ## Librato Metrics Used
 
 This library will output a few different kinds of Librato Metrics to Librato:
@@ -111,7 +130,7 @@ _Note that Coda Timer percentiles are determined using configurable <a href="htt
 
 While this library aims to accurately report all of the data that Coda Metrics provides, it can become somewhat verbose. One can reduce the number of metrics reported for Coda Timers, Coda Meters, and Coda Histograms when configuring the reporter. The percentiles, rates, and count for these metrics can be whitelisted (they are all on by default). In order to do this, supply a `LibratoReporter.MetricExpansionConfig` to the builder:
 
-    LibratoReporter.builder(registry, <email>, <token>)
+    Librato.reporter(registry, <email>, <token>)
         .setExpansionConfig(
             new MetricExpansionConfig(
                 EnumSet.of(
@@ -124,7 +143,7 @@ In this configuration, the reporter will only report the 95th percentile and 1 m
 
 Timers and Histograms end up generating a complex gauge along with any other expanded metrics that are configured to be sent to Librato. If you wish to exclude these complex gauges, one may enable `omitComplexGauges` in the LibratoReporter.
 
-    LibratoReporter.builder(registry, <email>, <token>)
+    Librato.reporter(registry, <email>, <token>)
       .setOmitComplexGauges(true)
 
 Note that in addition to the mean, complex gauges also include the minimum and maximum dimensions, so if you choose to enable this option, you will no longer have access to those summaries for those metrics.
@@ -135,20 +154,20 @@ A new feature in `4.0.1.4` detects when certain types of metrics (Meters, Histog
 
 This is enabled by default, but should you wish to disable this feature, you can do so when setting up the LibratoReporter:
 
-    LibratoReporter.builder(registry, <email>, <token>)
+    Librato.reporter(registry, <email>, <token>)
     	.setDeleteIdleStats(false)
 
 ## Custom Sources
 
 Sources are globally set for the LibratoReporter as described above. Sometimes though it is desirable to use custom
-sources for certain signals. To do this, supply a sourceRegex to the LibratoReporter builder.
+sources for certain signals. To do this, supply a sourceRegex to the Librato.reporter(...) builder.
 
 The regular expression must contain one matching group. As `metrics-librato` takes metrics from the registry and
 batches them, it will apply this regular expression (if supplied) to each metric name.  If the regular expression
 matches, it will use the first matching group as the source for that metric, and everything after the entire
 expression match will be used as the actual metric name.
 
-    LibratoReporter.builder(registry, <email>, <token>)
+    Librato.reporter(registry, <email>, <token>)
         .setSourceRegex(Pattern.compile("^(.*?)--"))
 
 The above regular expression will take a meter name like "uid:42--api.latency" and report that with a source of
