@@ -30,6 +30,9 @@ public class Librato {
     private boolean overrideTags;
     private Supplier<Reservoir> reservoir = defaultReservoir.get();
 
+    public static ReporterBuilder reporter(MetricRegistry registry, String email, String token) {
+        return new ReporterBuilder(registry, email, token);
+    }
 
     public static Librato metric(String name) {
         MetricRegistry registry = defaultRegistry.get();
