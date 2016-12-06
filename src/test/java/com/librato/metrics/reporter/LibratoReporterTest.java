@@ -215,6 +215,57 @@ public class LibratoReporterTest {
     }
 
     @Test
+    public void testTaggedAndSourceMeter() throws Exception {
+        atts.enableLegacy = true;
+        atts.enableTagging = true;
+
+        Meter meter = mock(Meter.class);
+        when(meter.getCount()).thenReturn(1L);
+        when(meter.getMeanRate()).thenReturn(2d);
+        when(meter.getOneMinuteRate()).thenReturn(3d);
+        when(meter.getFiveMinuteRate()).thenReturn(4d);
+        when(meter.getFifteenMinuteRate()).thenReturn(5d);
+        Librato.metric(registry, "foo").tag("a", "z").source("test").meter(meter);
+        LibratoReporter reporter = new LibratoReporter(atts);
+        HashSet<IMeasure> measures;
+
+        report(reporter);
+        measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
+        assertThat(measures).containsOnly(
+                new TaggedMeasure("foo.count", 1, new Tag("a", "z")),
+                new TaggedMeasure("foo.meanRate", meter.getMeanRate(), new Tag("a", "z")),
+                new TaggedMeasure("foo.1MinuteRate", meter.getOneMinuteRate(), new Tag("a", "z")),
+                new TaggedMeasure("foo.5MinuteRate", meter.getFiveMinuteRate(), new Tag("a", "z")),
+                new TaggedMeasure("foo.15MinuteRate", meter.getFifteenMinuteRate(), new Tag("a", "z")),
+                new GaugeMeasure("foo.count", 1).setSource("test"),
+                new GaugeMeasure("foo.meanRate", meter.getMeanRate()).setSource("test"),
+                new GaugeMeasure("foo.1MinuteRate", meter.getOneMinuteRate()).setSource("test"),
+                new GaugeMeasure("foo.5MinuteRate", meter.getFiveMinuteRate()).setSource("test"),
+                new GaugeMeasure("foo.15MinuteRate", meter.getFifteenMinuteRate()).setSource("test"));
+
+        // this time it should be empty because there has been no count increase
+        report(reporter);
+        measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
+        assertThat(measures).isEmpty();
+
+        // bump the count and verify that the values report correctly
+        when(meter.getCount()).thenReturn(2L);
+        report(reporter);
+        measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
+        assertThat(measures).containsOnly(
+                new TaggedMeasure("foo.count", 1, new Tag("a", "z")), // delta
+                new TaggedMeasure("foo.meanRate", meter.getMeanRate(), new Tag("a", "z")),
+                new TaggedMeasure("foo.1MinuteRate", meter.getOneMinuteRate(), new Tag("a", "z")),
+                new TaggedMeasure("foo.5MinuteRate", meter.getFiveMinuteRate(), new Tag("a", "z")),
+                new TaggedMeasure("foo.15MinuteRate", meter.getFifteenMinuteRate(), new Tag("a", "z")),
+                new GaugeMeasure("foo.count", 1).setSource("test"), // delta
+                new GaugeMeasure("foo.meanRate", meter.getMeanRate()).setSource("test"),
+                new GaugeMeasure("foo.1MinuteRate", meter.getOneMinuteRate()).setSource("test"),
+                new GaugeMeasure("foo.5MinuteRate", meter.getFiveMinuteRate()).setSource("test"),
+                new GaugeMeasure("foo.15MinuteRate", meter.getFifteenMinuteRate()).setSource("test"));
+    }
+
+    @Test
     public void testHisto() throws Exception {
         Histogram histo = new Histogram(new UniformReservoir());
         histo.update(42);
