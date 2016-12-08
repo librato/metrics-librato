@@ -34,6 +34,7 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
     private final boolean enableTagging;
     private final RateConverter rateConverter;
     private final DurationConverter durationConverter;
+    private volatile Integer defaultPeriod;
 
     public static ReporterBuilder builder(MetricRegistry registry,
                                           String email,
@@ -70,6 +71,7 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
     @Override
     public void start(long period, TimeUnit unit) {
         Librato.defaultWindow.set(new Duration(period, unit));
+        defaultPeriod = (int) (unit.toSeconds(period));
         super.start(period, unit);
     }
 
@@ -78,7 +80,8 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
                        SortedMap<String, Histogram> histograms,
                        SortedMap<String, Meter> meters,
                        SortedMap<String, Timer> timers) {
-        Measures measures = new Measures(source, tags, System.currentTimeMillis() / 1000);
+        long epoch = System.currentTimeMillis() / 1000;
+        Measures measures = new Measures(source, tags, epoch, defaultPeriod);
         addGauges(measures, gauges);
         addCounters(measures, counters);
         addHistograms(measures, histograms);
