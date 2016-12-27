@@ -6,6 +6,7 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.net.SocketTimeoutException;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.SortedMap;
@@ -81,7 +82,7 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
                        SortedMap<String, Meter> meters,
                        SortedMap<String, Timer> timers) {
         long epoch = System.currentTimeMillis() / 1000;
-        Measures measures = new Measures(source, tags, epoch, defaultPeriod);
+        Measures measures = new Measures(source, Collections.<Tag>emptyList(), epoch, defaultPeriod);
         addGauges(measures, gauges);
         addCounters(measures, counters);
         addHistograms(measures, histograms);

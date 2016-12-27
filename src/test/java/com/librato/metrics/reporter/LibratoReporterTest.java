@@ -54,6 +54,22 @@ public class LibratoReporterTest {
     }
 
     @Test
+    public void testOmitsTagsAtTheRootLevel() throws Exception {
+        atts.enableLegacy = false;
+        atts.enableTagging = true;
+        atts.tags.add(new Tag("root", "tag"));
+
+        Librato.metric(registry, "foo").tag("foo", "bar").counter().inc();
+        LibratoReporter reporter = new LibratoReporter(atts);
+        report(reporter);
+        Measures captured = captor.getValue();
+        HashSet<IMeasure> measures = new HashSet<IMeasure>(captured.getMeasures());
+        assertThat(captured.getTags()).isEmpty();
+        assertThat(measures).containsOnly(
+                new TaggedMeasure("foo", 1, new Tag("foo", "bar"), new Tag("root", "tag")));
+    }
+
+    @Test
     public void testCounter() throws Exception {
         Counter counter = new Counter();
         registry.register("foo", counter);
@@ -69,12 +85,13 @@ public class LibratoReporterTest {
     public void testRejectsNonTaggedMetrics() throws Exception {
         atts.enableLegacy = false;
         atts.enableTagging = true;
-        Counter counter = Librato.metric(registry, "foo").counter();
-        counter.inc();
-        LibratoReporter reporter = new LibratoReporter(atts);
+        Librato.metric(registry, "foo").counter().inc();
+        LibratoReporter reporter;
+        reporter = new LibratoReporter(atts);
         report(reporter);
-        HashSet<IMeasure> measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
-        assertThat(measures.isEmpty());
+        HashSet<IMeasure> measures;
+        measures = new HashSet<IMeasure>(captor.getValue().getMeasures());
+        assertThat(measures.isEmpty()).isFalse();
     }
 
     @Test
