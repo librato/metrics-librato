@@ -66,7 +66,7 @@ public class LibratoReporterTest {
         HashSet<IMeasure> measures = new HashSet<IMeasure>(captured.getMeasures());
         assertThat(captured.getTags()).isEmpty();
         assertThat(measures).containsOnly(
-                new TaggedMeasure("foo", 1, new Tag("root", "tag"), new Tag("foo", "bar")));
+                new TaggedMeasure("foo", 1, new Tag("foo", "bar"), new Tag("root", "tag")));
     }
 
     @Test
