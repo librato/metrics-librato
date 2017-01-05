@@ -5,7 +5,7 @@ The `LibratoReporter` class runs in the background, publishing metrics from <a h
 	<dependency>
 	  <groupId>com.librato.metrics</groupId>
 	  <artifactId>metrics-librato</artifactId>
-	  <version>5.0.4</version>
+	  <version>5.0.5</version>
 	</dependency>
 
 ## Usage
