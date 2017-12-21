@@ -1,7 +1,25 @@
 package com.librato.metrics.reporter;
 
-import com.codahale.metrics.*;
-import com.librato.metrics.client.*;
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Counting;
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Histogram;
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.Metered;
+import com.codahale.metrics.MetricRegistry;
+import com.codahale.metrics.Sampling;
+import com.codahale.metrics.ScheduledReporter;
+import com.codahale.metrics.Snapshot;
+import com.codahale.metrics.Timer;
+import com.librato.metrics.client.Duration;
+import com.librato.metrics.client.GaugeMeasure;
+import com.librato.metrics.client.LibratoClient;
+import com.librato.metrics.client.Measures;
+import com.librato.metrics.client.PostMeasuresResult;
+import com.librato.metrics.client.PostResult;
+import com.librato.metrics.client.Sanitizer;
+import com.librato.metrics.client.Tag;
+import com.librato.metrics.client.TaggedMeasure;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -332,7 +350,7 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
     }
 
     private Tag sanitize(Tag tag) {
-        return new Tag(Sanitizer.LAST_PASS.apply(tag.name), Sanitizer.LAST_PASS.apply(tag.value));
+        return new Tag(Sanitizer.TAG_NAME_SANITIZER.apply(tag.name), Sanitizer.TAG_VALUE_SANITIZER.apply(tag.value));
     }
 
 }
