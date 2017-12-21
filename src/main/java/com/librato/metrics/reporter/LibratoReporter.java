@@ -341,6 +341,8 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
         return super.convertDuration(duration);
     }
 
+    // TODO: It's not clear to me that this even needs to be called, here, since librato-java
+    // already does the dirty work of sanitizing inputs -jr, 12/21/17
     private List<Tag> sanitize(List<Tag> tags) {
         List<Tag> result = new LinkedList<Tag>();
         for (Tag tag : tags) {
