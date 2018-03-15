@@ -177,7 +177,7 @@ public class Librato {
         });
     }
 
-    public boolean delete() {
+    public boolean remove() {
         Signal signal = createSignal();
         if (signal == null) {
             return registry.remove(name);

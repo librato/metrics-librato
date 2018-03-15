@@ -1,10 +1,8 @@
 package com.librato.metrics.reporter;
 
 import com.codahale.metrics.Gauge;
-import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.librato.metrics.client.Tag;
-import org.assertj.core.util.Lists;
 import org.junit.Test;
 
 import java.util.ArrayList;
@@ -108,7 +106,7 @@ public class LibratoTest {
     }
 
     @Test
-    public void testDeleteTaggedMeter() {
+    public void testRemoveTaggedMeter() {
         Librato.metric(registry, "test")
                 .tag("foo", "bar")
                 .tag("bar", "baz")
@@ -124,14 +122,14 @@ public class LibratoTest {
         boolean removed = Librato.metric(registry, "test")
                 .tag("foo", "bar")
                 .tag("bar", "baz")
-                .delete();
+                .remove();
 
         assertThat(removed).isTrue();
         assertThat(registry.getMeters().keySet()).isEmpty();
     }
 
     @Test
-    public void testDeleteSourceMeter() {
+    public void testRemoveSourceMeter() {
         Librato.metric(registry, "test")
                 .source("foo")
                 .meter();
@@ -145,26 +143,26 @@ public class LibratoTest {
 
         boolean removed = Librato.metric(registry, "test")
                 .source("foo")
-                .delete();
+                .remove();
 
         assertThat(removed).isTrue();
         assertThat(registry.getMeters().keySet()).isEmpty();
     }
 
     @Test
-    public void testDeleteMeter() {
+    public void testRemoveMeter() {
         Librato.metric(registry, "test")
                 .meter();
 
-        boolean removed = Librato.metric(registry, "test").delete();
+        boolean removed = Librato.metric(registry, "test").remove();
 
         assertThat(removed).isTrue();
         assertThat(registry.getMeters().keySet()).isEmpty();
     }
 
     @Test
-    public void testDeleteNonExistentMetric() {
-        boolean removed = Librato.metric(registry, "test").delete();
+    public void testRemoveNonExistentMetric() {
+        boolean removed = Librato.metric(registry, "test").remove();
         assertThat(removed).isFalse();
     }
 }
