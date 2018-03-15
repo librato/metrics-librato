@@ -5,6 +5,8 @@ import com.codahale.metrics.MetricRegistry;
 import com.librato.metrics.client.Tag;
 import org.junit.Test;
 
+import java.util.ArrayList;
+
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -101,5 +103,66 @@ public class LibratoTest {
                 "bar",
                 asList(new Tag("region", "us-east-1")),
                 true));
+    }
+
+    @Test
+    public void testRemoveTaggedMeter() {
+        Librato.metric(registry, "test")
+                .tag("foo", "bar")
+                .tag("bar", "baz")
+                .meter();
+
+        Signal signal = Signal.decode(registry.getMeters().keySet().iterator().next());
+        assertThat(signal).isEqualTo(new Signal(
+                "test",
+                null,
+                asList(new Tag("foo", "bar"), new Tag("bar", "baz")),
+                false));
+
+        boolean removed = Librato.metric(registry, "test")
+                .tag("foo", "bar")
+                .tag("bar", "baz")
+                .remove();
+
+        assertThat(removed).isTrue();
+        assertThat(registry.getMeters().keySet()).isEmpty();
+    }
+
+    @Test
+    public void testRemoveSourceMeter() {
+        Librato.metric(registry, "test")
+                .source("foo")
+                .meter();
+
+        Signal signal = Signal.decode(registry.getMeters().keySet().iterator().next());
+        assertThat(signal).isEqualTo(new Signal(
+                "test",
+                "foo",
+                new ArrayList<Tag>(),
+                false));
+
+        boolean removed = Librato.metric(registry, "test")
+                .source("foo")
+                .remove();
+
+        assertThat(removed).isTrue();
+        assertThat(registry.getMeters().keySet()).isEmpty();
+    }
+
+    @Test
+    public void testRemoveMeter() {
+        Librato.metric(registry, "test")
+                .meter();
+
+        boolean removed = Librato.metric(registry, "test").remove();
+
+        assertThat(removed).isTrue();
+        assertThat(registry.getMeters().keySet()).isEmpty();
+    }
+
+    @Test
+    public void testRemoveNonExistentMetric() {
+        boolean removed = Librato.metric(registry, "test").remove();
+        assertThat(removed).isFalse();
     }
 }

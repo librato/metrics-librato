@@ -177,6 +177,14 @@ public class Librato {
         });
     }
 
+    public boolean remove() {
+        Signal signal = createSignal();
+        if (signal == null) {
+            return registry.remove(name);
+        }
+        return registry.remove(encodeName(signal));
+    }
+
     private void addTag(Tag tag) {
         if (this.tags.isEmpty()) {
             this.tags = new LinkedList<Tag>();
