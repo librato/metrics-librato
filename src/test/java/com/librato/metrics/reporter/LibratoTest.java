@@ -1,9 +1,13 @@
 package com.librato.metrics.reporter;
 
 import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.librato.metrics.client.Tag;
+import org.assertj.core.util.Lists;
 import org.junit.Test;
+
+import java.util.ArrayList;
 
 import static java.util.Arrays.asList;
 import static org.assertj.core.api.Assertions.assertThat;
@@ -101,5 +105,56 @@ public class LibratoTest {
                 "bar",
                 asList(new Tag("region", "us-east-1")),
                 true));
+    }
+
+    @Test
+    public void testDeleteTaggedMeter() {
+        Librato.metric(registry, "test")
+                .tag("foo", "bar")
+                .tag("bar", "baz")
+                .meter();
+
+        Signal signal = Signal.decode(registry.getMeters().keySet().iterator().next());
+        assertThat(signal).isEqualTo(new Signal(
+                "test",
+                null,
+                asList(new Tag("foo", "bar"), new Tag("bar", "baz")),
+                false));
+
+        Librato.metric(registry, "test")
+                .tag("foo", "bar")
+                .tag("bar", "baz")
+                .delete();
+
+        assertThat(registry.getMeters().keySet()).isEmpty();
+    }
+
+    @Test
+    public void testDeleteSourceMeter() {
+        Librato.metric(registry, "test")
+                .source("foo")
+                .meter();
+
+        Signal signal = Signal.decode(registry.getMeters().keySet().iterator().next());
+        assertThat(signal).isEqualTo(new Signal(
+                "test",
+                "foo",
+                new ArrayList<Tag>(),
+                false));
+
+        Librato.metric(registry, "test")
+                .source("foo")
+                .delete();
+
+        assertThat(registry.getMeters().keySet()).isEmpty();
+    }
+
+    @Test
+    public void testDeleteMeter() {
+        Librato.metric(registry, "test")
+                .meter();
+
+        Librato.metric(registry, "test").delete();
+        assertThat(registry.getMeters().keySet()).isEmpty();
     }
 }
