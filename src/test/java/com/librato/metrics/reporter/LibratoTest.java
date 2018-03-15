@@ -121,11 +121,12 @@ public class LibratoTest {
                 asList(new Tag("foo", "bar"), new Tag("bar", "baz")),
                 false));
 
-        Librato.metric(registry, "test")
+        boolean removed = Librato.metric(registry, "test")
                 .tag("foo", "bar")
                 .tag("bar", "baz")
                 .delete();
 
+        assertThat(removed).isTrue();
         assertThat(registry.getMeters().keySet()).isEmpty();
     }
 
@@ -142,10 +143,11 @@ public class LibratoTest {
                 new ArrayList<Tag>(),
                 false));
 
-        Librato.metric(registry, "test")
+        boolean removed = Librato.metric(registry, "test")
                 .source("foo")
                 .delete();
 
+        assertThat(removed).isTrue();
         assertThat(registry.getMeters().keySet()).isEmpty();
     }
 
@@ -154,7 +156,15 @@ public class LibratoTest {
         Librato.metric(registry, "test")
                 .meter();
 
-        Librato.metric(registry, "test").delete();
+        boolean removed = Librato.metric(registry, "test").delete();
+
+        assertThat(removed).isTrue();
         assertThat(registry.getMeters().keySet()).isEmpty();
+    }
+
+    @Test
+    public void testDeleteNonExistentMetric() {
+        boolean removed = Librato.metric(registry, "test").delete();
+        assertThat(removed).isFalse();
     }
 }

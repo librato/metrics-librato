@@ -177,12 +177,12 @@ public class Librato {
         });
     }
 
-    public void delete() {
+    public boolean delete() {
         Signal signal = createSignal();
         if (signal == null) {
-            registry.remove(name);
+            return registry.remove(name);
         }
-        registry.remove(encodeName(signal));
+        return registry.remove(encodeName(signal));
     }
 
     private void addTag(Tag tag) {
