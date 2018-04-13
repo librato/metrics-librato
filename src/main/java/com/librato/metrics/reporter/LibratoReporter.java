@@ -62,7 +62,7 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
         this.deleteIdleStats = atts.deleteIdleStats;
         this.omitComplexGauges = atts.omitComplexGauges;
         this.source = atts.source;
-        this.tags = sanitize(atts.tags);
+        this.tags = atts.tags;
         this.enableLegacy = atts.enableLegacy;
         this.enableTagging = atts.enableTagging;
         this.rateConverter = atts.rateConverter != null ? atts.rateConverter : this;
@@ -235,7 +235,7 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
             }
             boolean addedSourceTag = false;
             if (!signal.overrideTags && signal.tags.isEmpty() && signal.source != null) {
-                taggedMeasure.addTag(sanitize(new Tag("source", signal.source)));
+                taggedMeasure.addTag(new Tag("source", signal.source));
                 addedSourceTag = true;
             }
             if (!signal.overrideTags) {
@@ -322,17 +322,4 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
     public double convertDuration(double duration) {
         return super.convertDuration(duration);
     }
-
-    private List<Tag> sanitize(List<Tag> tags) {
-        List<Tag> result = new LinkedList<Tag>();
-        for (Tag tag : tags) {
-            result.add(sanitize(tag));
-        }
-        return result;
-    }
-
-    private Tag sanitize(Tag tag) {
-        return new Tag(Sanitizer.LAST_PASS.apply(tag.name), Sanitizer.LAST_PASS.apply(tag.value));
-    }
-
 }
