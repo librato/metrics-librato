@@ -9,7 +9,7 @@
     <groupId>com.librato.metrics</groupId>
     <artifactId>metrics-librato</artifactId>
     <name>Metrics Librato Support</name>
-    <version>5.1.3</version>
+    <version>5.1.4-SNAPSHOT</version>
     <description>The LibratoReporter class runs in the background, publishing
         metrics to the Librato Metrics API at the
         specified interval.
@@ -29,7 +29,7 @@
         <developerConnection>
             scm:git:git@github.com:librato/metrics-librato.git
         </developerConnection>
-        <tag>metrics-librato-5.1.3</tag>
+        <tag>HEAD</tag>
     </scm>
     <properties>
         <dropwizard.metrics.version>3.2.5</dropwizard.metrics.version>
