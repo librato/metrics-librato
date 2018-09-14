@@ -58,7 +58,7 @@ public class Librato {
             @Override
             public Reservoir get() {
                 Duration window = defaultWindow.get();
-                return new SlidingTimeWindowReservoir(window.duration, window.timeUnit);
+                return new SlidingTimeWindowArrayReservoir(window.duration, window.timeUnit);
             }
         };
         return this;
@@ -68,7 +68,7 @@ public class Librato {
         this.reservoir = new Supplier<Reservoir>() {
             @Override
             public Reservoir get() {
-                return new SlidingTimeWindowReservoir(window, unit);
+                return new SlidingTimeWindowArrayReservoir(window, unit);
             }
         };
         return this;
