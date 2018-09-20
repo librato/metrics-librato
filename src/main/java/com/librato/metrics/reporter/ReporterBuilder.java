@@ -3,6 +3,7 @@ package com.librato.metrics.reporter;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.librato.metrics.client.Duration;
+import com.librato.metrics.client.IPoster;
 import com.librato.metrics.client.Tag;
 
 import java.util.concurrent.TimeUnit;
@@ -113,6 +114,11 @@ public class ReporterBuilder {
 
     public ReporterBuilder setEnableTagging(boolean value) {
         this.atts.enableTagging = value;
+        return this;
+    }
+
+    public ReporterBuilder setPoster(IPoster poster) {
+        this.atts.poster = poster;
         return this;
     }
 }
