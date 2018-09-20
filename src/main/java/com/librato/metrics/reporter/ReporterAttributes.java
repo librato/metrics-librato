@@ -3,6 +3,7 @@ package com.librato.metrics.reporter;
 import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.librato.metrics.client.Duration;
+import com.librato.metrics.client.IPoster;
 import com.librato.metrics.client.Tag;
 
 import java.util.LinkedList;
@@ -34,4 +35,5 @@ public class ReporterAttributes {
     boolean enableTagging;
     RateConverter rateConverter;
     DurationConverter durationConverter;
+    IPoster poster;
 }

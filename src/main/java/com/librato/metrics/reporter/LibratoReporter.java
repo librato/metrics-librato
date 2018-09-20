@@ -112,7 +112,7 @@ public class LibratoReporter extends ScheduledReporter implements RateConverter,
     private void handlePostFailure(Exception e) {
         Throwable cause = getCause(e);
         if (cause instanceof SocketTimeoutException) {
-            log.warn("Could not connect to Librato: " + cause);
+            log.warn("Could not connect to Librato", cause);
             return;
         }
         log.warn("Failure to post to Librato", e);

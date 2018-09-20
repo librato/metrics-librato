@@ -14,6 +14,9 @@ public class DefaultLibratoClientFactory implements ILibratoClientFactory {
         if (atts.connectTimeout != null) {
             builder.setConnectTimeout(atts.connectTimeout);
         }
+        if (atts.poster != null) {
+            builder.setPoster(atts.poster);
+        }
         return builder.build();
     }
 }
