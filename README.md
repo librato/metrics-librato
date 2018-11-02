@@ -1,3 +1,5 @@
+**DEPRECATED:** This library is deprecated, if you are using [AppOptics](https://www.appoptics.com) please refer to [metrics-appoptics](https://github.com/appoptics/metrics-appoptics).
+
 ## Librato Metrics Plugin for the Metrics Library
 
 The `LibratoReporter` class runs in the background, publishing metrics from <a href="http://metrics.dropwizard.io/">dropwizard/metrics</a> to the <a href="http://metrics.librato.com">Librato Metrics API</a> at the specified interval.
